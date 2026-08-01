@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import AnswerKeyCalculatorPage from '../../answerkey/page';
 
 export default async function ExamSlugAnswerKeyPage({ params }) {
