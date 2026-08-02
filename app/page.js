@@ -78,20 +78,19 @@ export default async function HomePage() {
               <p className="text-sm text-[#64748b] mt-1">Select your exam to check marks & rank</p>
             </div>
 
-            {/* DESKTOP ONLY ANSWERKEY CALCULATOR BUTTON RIGHT ALIGNED WITH HEADING WHEN BLOGS HIDDEN */}
-            {!showBlogs && (
-              <div className="hidden lg:block">
-                <Link 
-                  href="/answerkey" 
-                  className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white font-bold text-base py-3 px-5 rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2.5 hover:opacity-95 transition-all whitespace-nowrap"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                  </svg>
-                  Answerkey Calculator
-                </Link>
-              </div>
-            )}
+            {/* DESKTOP ONLY ANSWERKEY CALCULATOR BUTTON RIGHT ALIGNED WITH HEADING */}
+            <div className="hidden lg:block">
+              <Link 
+                href="/answerkey" 
+                className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white font-bold text-base py-3 px-5 rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2.5 hover:opacity-95 transition-all whitespace-nowrap"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M7 21h10a2 2 0 002-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                </svg>
+                Answerkey Calculator
+              </Link>
+            </div>
+
           </div>
 
           {/* Exam List Cards (Spans 100% Full Width when showBlogs is false) */}
