@@ -26,7 +26,7 @@ export async function POST(req) {
 
     const msgSubject = subject || 'General Query';
 
-    // 1. D1 Database Persistence: Ensure messages table exists
+    // 1. D1 Database Persistence
     try {
       await queryD1(`
         CREATE TABLE IF NOT EXISTS messages (
@@ -38,28 +38,35 @@ export async function POST(req) {
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `);
-    } catch (tblErr) {
-      console.error('Table creation check failed:', tblErr);
-    }
 
-    // Save message to Cloudflare D1
-    try {
       await queryD1(
         `INSERT INTO messages (name, email, subject, message) VALUES (?, ?, ?, ?)`,
         [name.trim(), email.trim(), msgSubject.trim(), message.trim()]
       );
     } catch (dbErr) {
-      console.error('Failed to insert message into D1:', dbErr);
+      console.error('Failed to save message in D1:', dbErr);
     }
 
-    // 2. Direct Gmail Delivery: Send email directly to contact.cbtrank@gmail.com
+    // 2. Direct Instant Gmail Delivery via Web3Forms & FormSubmit
     try {
-      await fetch('https://formsubmit.co/ajax/contact.cbtrank@gmail.com', {
+      // Primary: Web3Forms instant email submission to contact.cbtrank@gmail.com
+      fetch('https://api.web3forms.com/submit', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          access_key: "62688fbd-758a-4467-9c98-1e42a045952c",
+          to_email: "contact.cbtrank@gmail.com",
+          name: name.trim(),
+          email: email.trim(),
+          subject: `[CBT RANK Contact] ${msgSubject} from ${name.trim()}`,
+          message: message.trim()
+        })
+      }).catch(e => console.error('Web3Forms Error:', e));
+
+      // Backup: FormSubmit AJAX submission
+      fetch('https://formsubmit.co/ajax/contact.cbtrank@gmail.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({
           _subject: `[CBT RANK Contact] ${msgSubject} from ${name.trim()}`,
           _replyto: email.trim(),
@@ -69,14 +76,15 @@ export async function POST(req) {
           Subject: msgSubject.trim(),
           Message: message.trim()
         })
-      });
+      }).catch(e => console.error('FormSubmit Error:', e));
+
     } catch (emailErr) {
-      console.error('Failed to forward message to Gmail:', emailErr);
+      console.error('Email Delivery Error:', emailErr);
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Your message has been delivered directly to our Gmail and stored in database successfully!',
+      message: 'Your message was sent successfully! We will get back to you soon.',
     });
   } catch (error) {
     console.error('Contact API Error:', error);

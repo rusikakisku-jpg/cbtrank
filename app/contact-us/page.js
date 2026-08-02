@@ -78,7 +78,7 @@ export default function ContactUsPage() {
 
           {success && (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-lg text-sm font-medium">
-              ✅ Your message was sent successfully! It has been delivered directly to our Gmail and stored in database.
+              ✅ Your message was sent successfully! We will get back to you soon.
             </div>
           )}
 
