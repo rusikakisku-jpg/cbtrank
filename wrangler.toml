@@ -1,8 +1,11 @@
 name = "cbtrank"
+main = ".vercel/output/static/_worker.js/index.js"
 compatibility_date = "2026-08-01"
 compatibility_flags = ["nodejs_compat"]
 
-pages_build_output_dir = ".vercel/output/static"
+[assets]
+directory = ".vercel/output/static"
+binding = "ASSETS"
 
 # Cloudflare D1 Database Binding
 [[d1_databases]]
