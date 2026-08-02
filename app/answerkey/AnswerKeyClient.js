@@ -31,7 +31,7 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
 
   const [inputMode, setInputMode] = useState('url'); // 'url' | 'html'
   const [rawHtmlCode, setRawHtmlCode] = useState('');
-  const [consentChecked, setConsentChecked] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -433,11 +433,11 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
               <div className="pt-1.5 flex justify-center">
                 <button 
                   type="submit"
-                  disabled={!consentChecked || loading}
+                  disabled={loading}
                   className={`w-full sm:w-auto px-8 sm:px-12 py-2.5 sm:py-3 rounded-xl font-bold text-white text-xs sm:text-sm tracking-wide shadow-md transition-all duration-200 flex items-center justify-center gap-2 ${
-                    consentChecked && !loading 
+                    !loading 
                       ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[0.99] cursor-pointer' 
-                      : 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                      : 'bg-slate-400 text-slate-200 cursor-not-allowed shadow-none'
                   }`}
                 >
                   {loading ? (
