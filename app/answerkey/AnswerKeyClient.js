@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AnswerKeyCalculatorPage({ params, initialExam = null, initialLanguages = null }) {
@@ -32,6 +32,21 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
   const [consentChecked, setConsentChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const toastTimer = useRef(null);
+
+  // Auto-dismiss toast after 4 seconds
+  useEffect(() => {
+    if (errorMessage) {
+      setShowToast(true);
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(() => {
+        setShowToast(false);
+        setTimeout(() => setErrorMessage(''), 400);
+      }, 4000);
+    }
+    return () => { if (toastTimer.current) clearTimeout(toastTimer.current); };
+  }, [errorMessage]);
 
   useEffect(() => {
     if (slug && (!currentExam || currentExam.slug !== slug)) {
@@ -152,6 +167,78 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
 
   return (
     <div className="w-full min-h-screen bg-slate-50/70 pt-1.5 sm:pt-3 pb-16 px-4 sm:px-6 lg:px-8 font-sans antialiased text-slate-900">
+
+      {/* ── TOP-RIGHT TOAST NOTIFICATION ── */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 9999,
+          transform: showToast ? 'translateX(0)' : 'translateX(calc(100% + 24px))',
+          opacity: showToast ? 1 : 0,
+          transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease',
+          minWidth: '280px',
+          maxWidth: '340px',
+        }}
+      >
+        <div style={{
+          background: '#1e1e2e',
+          border: '1px solid rgba(239,68,68,0.3)',
+          borderLeft: '4px solid #ef4444',
+          borderRadius: '12px',
+          padding: '14px 16px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(239,68,68,0.15)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          {/* Icon */}
+          <div style={{
+            width: '32px', height: '32px', borderRadius: '8px',
+            background: 'rgba(239,68,68,0.15)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+
+          {/* Text */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Error</p>
+            <p style={{ margin: '2px 0 0', fontSize: '13px', fontWeight: 600, color: '#f1f5f9', lineHeight: 1.4 }}>{errorMessage}</p>
+          </div>
+
+          {/* Close Button */}
+          <button
+            onClick={() => { setShowToast(false); setTimeout(() => setErrorMessage(''), 400); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '2px', flexShrink: 0, lineHeight: 1 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+
+          {/* Auto-dismiss progress bar */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, height: '3px',
+            background: 'linear-gradient(90deg, #ef4444, #f97316)',
+            borderRadius: '0 0 0 8px',
+            animation: showToast ? 'toastProgress 4s linear forwards' : 'none',
+          }} />
+        </div>
+
+        <style>{`
+          @keyframes toastProgress {
+            from { width: 100%; }
+            to { width: 0%; }
+          }
+        `}</style>
+      </div>
+
       <div className="max-w-6xl mx-auto space-y-7">
         
         {/* CALCULATOR CARD CONTAINER */}
@@ -178,12 +265,6 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
 
           <div className="p-5 sm:p-7 space-y-4">
 
-            {errorMessage && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3.5 rounded-xl font-medium flex items-center gap-2 shadow-sm">
-                <span>⚠️</span>
-                <span>{errorMessage}</span>
-              </div>
-            )}
 
             <form onSubmit={handleSubmit} className="space-y-3.5">
               
