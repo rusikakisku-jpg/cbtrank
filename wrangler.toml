@@ -12,8 +12,3 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "cbtrank_db"
 database_id = "fd29c541-3fd2-4fa8-8dc1-19809ab907c3"
-
-# Cloudflare R2 Object Storage Bucket Binding (for Images & Uploads)
-[[r2_buckets]]
-binding = "R2_BUCKET"
-bucket_name = "cbtrank-uploads"
