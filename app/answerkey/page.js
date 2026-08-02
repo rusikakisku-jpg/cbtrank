@@ -14,7 +14,8 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
   const [gender, setGender] = useState('');
   const [paperLanguage, setPaperLanguage] = useState('');
   const [state, setState] = useState('');
-  
+  const [languages, setLanguages] = useState([]);
+
   const [currentExam, setCurrentExam] = useState(initialExam || null);
 
   // Custom right and wrong marks (defaults)
@@ -53,6 +54,21 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
         })
         .catch(err => console.error(err));
     }
+  }, [slug]);
+
+  // Fetch languages: exam-specific if slug present, else all active languages
+  useEffect(() => {
+    const url = slug
+      ? `/api/languages?slug=${encodeURIComponent(slug)}`
+      : `/api/languages`;
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.languages && data.languages.length > 0) {
+          setLanguages(data.languages);
+        }
+      })
+      .catch(err => console.error('Languages fetch error:', err));
   }, [slug]);
 
   const examTitleText = currentExam?.title || '';
@@ -248,11 +264,9 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
                       className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm"
                     >
                       <option value="">Select Language (Optional)</option>
-                      <option value="english">English</option>
-                      <option value="hindi">Hindi</option>
-                      <option value="bengali">Bengali</option>
-                      <option value="gujarati">Gujarati</option>
-                      <option value="marathi">Marathi</option>
+                      {languages.map(lang => (
+                        <option key={lang.id} value={lang.slug}>{lang.name}</option>
+                      ))}
                     </select>
                   </div>
                 )}
