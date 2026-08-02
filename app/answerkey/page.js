@@ -236,6 +236,25 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
                   </select>
                 </div>
 
+                {/* Paper Language — between Gender and State */}
+                {languages.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Paper Language
+                    </label>
+                    <select 
+                      value={paperLanguage}
+                      onChange={(e) => setPaperLanguage(e.target.value)}
+                      className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm"
+                    >
+                      <option value="">Select Language (Optional)</option>
+                      {languages.map(lang => (
+                        <option key={lang.id} value={lang.slug}>{lang.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {showState && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -256,27 +275,6 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
                 )}
 
               </div>
-
-              {/* Paper Language — always visible, fetched from D1 */}
-              {languages.length > 0 && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Paper Language
-                  </label>
-                  <select 
-                    value={paperLanguage}
-                    onChange={(e) => setPaperLanguage(e.target.value)}
-                    className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl py-2.5 px-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm"
-                  >
-                    <option value="">Select Language (Optional)</option>
-                    {languages.map(lang => (
-                      <option key={lang.id} value={lang.slug}>{lang.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-
 
               {/* Consent Checkbox */}
               <div className="pt-1 px-0.5">
