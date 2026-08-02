@@ -222,8 +222,8 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
 
               </div>
 
-              {/* Gender, Language, State — full width stacked vertically in order */}
-              <div className="space-y-3.5 text-xs sm:text-sm">
+              {/* Gender, Language, State — horizontal 2-col grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs sm:text-sm">
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
