@@ -157,8 +157,7 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
                   required
                   value={ansKeyUrl}
                   onChange={(e) => setAnsKeyUrl(e.target.value)}
-                  placeholder="https://digialm.com//per/g06/pub/... or https://cbexams.com/..."
-                  className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm font-mono"
+                  className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm font-mono"
                 />
                 <p className="text-[11px] text-slate-500 mt-1 font-medium">
                   Use the official {examLabel}answer key link (the page where questions are visible).
