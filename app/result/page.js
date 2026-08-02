@@ -28,6 +28,8 @@ function ResultPageContent() {
   const marksWrong = searchParams.get('marks_wrong') || '';
   const slug = searchParams.get('slug') || '';
 
+  const [showRawJson, setShowRawJson] = useState(false);
+
   const fetchScorecard = (mRight, mWrong) => {
     const isRecalculate = mRight !== undefined || mWrong !== undefined;
 
@@ -444,6 +446,35 @@ function ResultPageContent() {
               </div>
 
             </div>
+          </div>
+
+          {/* 4. Raw Output Data Viewer (JSON Output) */}
+          <div className="pt-2 border-t border-slate-200/80">
+            <button
+              onClick={() => setShowRawJson(!showRawJson)}
+              className="w-full flex items-center justify-between bg-slate-100/90 hover:bg-slate-200/80 text-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs transition-all border border-slate-300/80 shadow-sm"
+            >
+              <span className="flex items-center gap-2">
+                <span>📄</span>
+                <span>{showRawJson ? 'Hide Raw Output JSON Data' : 'View Full Extracted Output Data (JSON)'}</span>
+              </span>
+              <span className="font-mono text-slate-500 font-black">{showRawJson ? '▲' : '▼'}</span>
+            </button>
+
+            {showRawJson && (
+              <div className="mt-2.5 bg-slate-900 text-emerald-400 p-4 rounded-xl font-mono text-[11px] overflow-x-auto max-h-96 shadow-inner border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-slate-400 text-[10px]">
+                  <span>EXTRACTED_OUTPUT_DATA.json</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(JSON.stringify(resultData, null, 2))}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded text-[10px] font-sans font-bold transition-all"
+                  >
+                    Copy Output JSON
+                  </button>
+                </div>
+                <pre className="whitespace-pre-wrap break-words">{JSON.stringify(resultData, null, 2)}</pre>
+              </div>
+            )}
           </div>
 
         </div>
