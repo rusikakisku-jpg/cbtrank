@@ -180,7 +180,7 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
                 </p>
               </div>
 
-              {/* Form Grid */}
+              {/* Form Grid — Category + Horizontal Category */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs sm:text-sm">
                 
                 <div>
@@ -220,6 +220,11 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
                   </select>
                 </div>
 
+              </div>
+
+              {/* Gender, Language, State — full width stacked vertically in order */}
+              <div className="space-y-3.5 text-xs sm:text-sm">
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Gender <span className="text-red-500">*</span>
@@ -236,7 +241,6 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
                   </select>
                 </div>
 
-                {/* Paper Language — between Gender and State */}
                 {languages.length > 0 && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -275,6 +279,8 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null }) 
                 )}
 
               </div>
+
+
 
               {/* Consent Checkbox */}
               <div className="pt-1 px-0.5">
