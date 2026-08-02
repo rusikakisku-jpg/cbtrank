@@ -141,9 +141,8 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
       sessionStorage.setItem('cbtrank_form_data', JSON.stringify(formData));
     }
 
-    // ── Clean URL navigation to result page (form data is passed securely via sessionStorage) ──
-    const targetPath = slug ? `/result?slug=${encodeURIComponent(slug)}` : '/result';
-    router.push(targetPath);
+    // ── Clean URL navigation: strictly /result (all parameters passed via sessionStorage) ──
+    router.push('/result');
   };
 
   const statesList = [
