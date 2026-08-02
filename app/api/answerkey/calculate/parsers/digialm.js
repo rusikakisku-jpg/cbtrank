@@ -106,50 +106,86 @@ function extractCandidateInfo(html) {
     infoRows: [],
   };
 
-  // Scope search area to main-info-pnl block up to grp-cntnr without early cutoff
+  // Scope search area to main-info-pnl block up to grp-cntnr or search full HTML
   let searchArea = html;
   const pnlIndex = html.toLowerCase().indexOf('main-info-pnl');
   if (pnlIndex !== -1) {
     const grpIndex = html.toLowerCase().indexOf('grp-cntnr', pnlIndex);
-    if (grpIndex !== -1) {
+    if (grpIndex !== -1 && grpIndex > pnlIndex + 100) {
       searchArea = html.substring(pnlIndex, grpIndex);
     } else {
-      searchArea = html.substring(pnlIndex, pnlIndex + 12000);
+      searchArea = html.substring(pnlIndex, pnlIndex + 15000);
     }
   }
 
-  // Header image (first img in search area or global)
+  // Header image (first img in search area or global html)
   const imgMatch = searchArea.match(/<img[^>]+src=['"]([^'"]+)['"]/i) || html.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
   if (imgMatch) info.headerImgUrl = imgMatch[1];
 
   const allRowCells = [];
   const rows = [...searchArea.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
+
   for (const row of rows) {
-    const cells = [...row[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
-      .map(c => normText(c[1].replace(/<[^>]+>/g, ' ')));
-    if (cells.length >= 2) {
-      const label = cells[0].trim();
-      const value = cells[1].trim();
-      if (label && value) {
-        allRowCells.push([label, value]);
-        info.infoRows.push({ label, value });
-        const lLower = label.toLowerCase();
-        
-        if (!info.candidateName && (lLower.includes('participant name') || lLower.includes('candidate name') || lLower.includes('student name') || lLower.includes('name'))) {
-          info.candidateName = value;
-        } else if (!info.rollNo && (lLower.includes('roll') || lLower.includes('participant id') || lLower.includes('candidate id') || lLower.includes('application no') || lLower.includes('reg'))) {
-          info.rollNo = value;
-        } else if (!info.testCenter && (lLower.includes('test center') || lLower.includes('exam center') || lLower.includes('venue') || lLower.includes('center'))) {
-          info.testCenter = value;
-        } else if (!info.testDate && (lLower.includes('test date') || lLower.includes('exam date') || lLower.includes('date'))) {
-          info.testDate = value;
-        } else if (!info.testTime && (lLower.includes('test time') || lLower.includes('shift') || lLower.includes('timing') || lLower.includes('time'))) {
-          info.testTime = value;
-        } else if (!info.examTitle && (lLower.includes('subject') || lLower.includes('exam name') || lLower.includes('post') || lLower.includes('paper'))) {
-          info.examTitle = value;
-        }
+    // Extract all <td> or <th> cells in the row
+    let rawCells = [...row[1].matchAll(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/gi)]
+      .map(c => normText(c[1].replace(/<[^>]+>/g, ' ')))
+      .map(c => c.trim())
+      .filter(c => c !== '');
+
+    if (rawCells.length === 0) continue;
+
+    let label = '';
+    let value = '';
+
+    if (rawCells.length >= 3 && rawCells[1] === ':') {
+      // Structure: <td>Label</td> <td>:</td> <td>Value</td>
+      label = rawCells[0];
+      value = rawCells.slice(2).join(' ');
+    } else if (rawCells.length >= 2) {
+      label = rawCells[0];
+      if (rawCells[1] === ':' && rawCells[2]) {
+        value = rawCells.slice(2).join(' ');
+      } else {
+        value = rawCells.slice(1).join(' ');
+      }
+    } else if (rawCells.length === 1) {
+      // Single cell like "Participant Name : Rahul Kumar"
+      const colonIdx = rawCells[0].indexOf(':');
+      if (colonIdx !== -1) {
+        label = rawCells[0].substring(0, colonIdx);
+        value = rawCells[0].substring(colonIdx + 1);
       }
     }
+
+    // Clean leading/trailing colons, dashes, and extra spaces
+    label = label.replace(/^[:\s\-]+|[:\s\-]+$/g, '').trim();
+    value = value.replace(/^[:\s\-]+|[:\s\-]+$/g, '').trim();
+
+    if (label && value && value !== ':') {
+      allRowCells.push([label, value]);
+      info.infoRows.push({ label, value });
+      const lLower = label.toLowerCase();
+      
+      if (!info.candidateName && (lLower.includes('participant name') || lLower.includes('candidate name') || lLower.includes('student name') || lLower.includes('applicant name') || lLower === 'name')) {
+        info.candidateName = value;
+      } else if (!info.rollNo && (lLower.includes('participant id') || lLower.includes('roll') || lLower.includes('candidate id') || lLower.includes('application') || lLower.includes('registration') || lLower.includes('reg'))) {
+        info.rollNo = value;
+      } else if (!info.testCenter && (lLower.includes('test center') || lLower.includes('exam center') || lLower.includes('venue') || lLower.includes('center'))) {
+        info.testCenter = value;
+      } else if (!info.testDate && (lLower.includes('test date') || lLower.includes('exam date') || lLower.includes('date of exam') || lLower.includes('date'))) {
+        info.testDate = value;
+      } else if (!info.testTime && (lLower.includes('test time') || lLower.includes('shift') || lLower.includes('timing') || lLower.includes('time'))) {
+        info.testTime = value;
+      } else if (!info.examTitle && (lLower.includes('subject') || lLower.includes('exam name') || lLower.includes('post name') || lLower.includes('paper'))) {
+        info.examTitle = value;
+      }
+    }
+  }
+
+  // Second pass: if searchArea didn't find info, try full html as fallback
+  if (info.infoRows.length === 0 && searchArea !== html) {
+    const fallbackInfo = extractCandidateInfo(html);
+    if (fallbackInfo.infoRows.length > 0) return fallbackInfo;
   }
 
   // Fallback date/time pattern scanner if not found via direct label matching
