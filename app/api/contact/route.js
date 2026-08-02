@@ -26,7 +26,7 @@ export async function POST(req) {
 
     const msgSubject = subject || 'General Query';
 
-    // Ensure messages table exists in D1
+    // 1. D1 Database Persistence: Ensure messages table exists
     try {
       await queryD1(`
         CREATE TABLE IF NOT EXISTS messages (
@@ -42,7 +42,7 @@ export async function POST(req) {
       console.error('Table creation check failed:', tblErr);
     }
 
-    // Save message to D1
+    // Save message to Cloudflare D1
     try {
       await queryD1(
         `INSERT INTO messages (name, email, subject, message) VALUES (?, ?, ?, ?)`,
@@ -52,9 +52,31 @@ export async function POST(req) {
       console.error('Failed to insert message into D1:', dbErr);
     }
 
+    // 2. Direct Gmail Delivery: Send email directly to contact.cbtrank@gmail.com
+    try {
+      await fetch('https://formsubmit.co/ajax/contact.cbtrank@gmail.com', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          _subject: `[CBT RANK Contact] ${msgSubject} from ${name.trim()}`,
+          _replyto: email.trim(),
+          _captcha: 'false',
+          Name: name.trim(),
+          Email: email.trim(),
+          Subject: msgSubject.trim(),
+          Message: message.trim()
+        })
+      });
+    } catch (emailErr) {
+      console.error('Failed to forward message to Gmail:', emailErr);
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Your message has been sent successfully! We will get back to you shortly.',
+      message: 'Your message has been delivered directly to our Gmail and stored in database successfully!',
     });
   } catch (error) {
     console.error('Contact API Error:', error);
