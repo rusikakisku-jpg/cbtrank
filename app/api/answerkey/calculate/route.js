@@ -78,6 +78,24 @@ export async function POST(request) {
     // ── Helper: check cbexams.com or subdomains ──
     const isCbexams = host === 'cbexams.com' || host.endsWith('.cbexams.com');
 
+    // ── Silent D1 tables auto-creation (never blocks execution) ──
+    try {
+      await queryD1(`
+        CREATE TABLE IF NOT EXISTS valid_answerkey_urls (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          url TEXT,
+          created_at TEXT
+        )
+      `);
+      await queryD1(`
+        CREATE TABLE IF NOT EXISTS invalid_answerkey_urls (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          url TEXT,
+          created_at TEXT
+        )
+      `);
+    } catch (e) {}
+
     // ── DOMAIN CHECK: Only digialm.com or cbexams.com allowed ──
     if (!isDigialm && !isCbexams) {
       try {
@@ -94,6 +112,12 @@ export async function POST(request) {
 
     // ── digialm.com: URL must end with .html ──
     if (isDigialm && !parsedUrl.pathname.toLowerCase().endsWith('.html')) {
+      try {
+        await queryD1(
+          'INSERT INTO invalid_answerkey_urls (url, created_at) VALUES (?, DATETIME("now"))',
+          [cleanUrl]
+        );
+      } catch (e) {}
       return NextResponse.json(
         { error: 'Enter Official Answerkey Url' },
         { status: 400 }
