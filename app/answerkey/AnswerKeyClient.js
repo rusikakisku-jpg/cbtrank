@@ -303,7 +303,6 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
                 <input 
                   type="url" 
                   required
-                  placeholder="https://cdn3.digialm.com/.../touchstone.html"
                   value={ansKeyUrl}
                   onChange={(e) => setAnsKeyUrl(e.target.value)}
                   className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm font-mono"
