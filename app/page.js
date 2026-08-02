@@ -62,36 +62,36 @@ export default async function HomePage() {
   return (
     <div className="w-[95%] max-w-[1200px] mx-auto py-6">
       
-      {/* MOBILE ONLY: FULL-WIDTH ANSWERKEY CALCULATOR BUTTON AT THE VERY TOP */}
-      <div className="block lg:hidden mb-6">
+      {/* MOBILE & DESKTOP ANSWERKEY CALCULATOR BUTTON WHEN BLOGS HIDDEN OR MOBILE ONLY */}
+      <div className={`mb-6 ${showBlogs ? 'block lg:hidden' : 'block'}`}>
         <Link 
           href="/answerkey" 
-          className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white font-bold text-base py-3.5 px-5 rounded-xl shadow-md flex items-center justify-center gap-2.5 hover:opacity-95 transition-all"
+          className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white font-bold text-base sm:text-lg py-3.5 sm:py-4 px-5 rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2.5 hover:opacity-95 transition-all"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
           </svg>
           Answerkey Calculator
         </Link>
       </div>
 
-      {/* 2-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+      {/* Dynamic Layout: 2-Column when Blogs ON (1), Full Width when Blogs OFF (0) */}
+      <div className={showBlogs ? "grid grid-cols-1 lg:grid-cols-2 gap-8 items-start" : "w-full space-y-6"}>
         
-        {/* Left Column: Latest Answer Keys */}
-        <section className="space-y-5">
+        {/* Latest Answer Keys Section (Full Width when showBlogs is false) */}
+        <section className="space-y-5 w-full">
           <div>
             <h2 className="text-2xl font-extrabold text-[#0f172a] tracking-tight">Latest Answer Keys</h2>
             <p className="text-sm text-[#64748b] mt-1">Select your exam to check marks & rank</p>
           </div>
 
-          {/* Exam List Cards */}
+          {/* Exam List Cards (Spans 100% Full Width when showBlogs is false) */}
           {latestItems.length > 0 ? (
-            <div className="grid gap-3">
+            <div className="grid gap-3 w-full">
               {latestItems.map((item) => (
                 <div 
                   key={item.id}
-                  className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm hover:border-[#0b69ff] hover:shadow-md transition-all group"
+                  className="bg-white rounded-xl border border-[#e2e8f0] shadow-sm hover:border-[#0b69ff] hover:shadow-md transition-all group w-full"
                 >
                   <Link href={`/${item.slug}/answerkey`} className="flex items-center justify-between p-4 sm:p-5">
                     <div className="space-y-1">
@@ -118,30 +118,30 @@ export default async function HomePage() {
               ))}
             </div>
           ) : (
-            <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-8 text-center text-[#64748b]">
+            <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-xl p-8 text-center text-[#64748b] w-full">
               <p>अभी कोई updates उपलब्ध नहीं हैं।</p>
             </div>
           )}
         </section>
 
-        {/* Right Column: Desktop Button & Articles */}
-        <section className="space-y-6">
-          
-          {/* DESKTOP ONLY: PROMINENT ANSWERKEY CALCULATOR BUTTON */}
-          <div className="hidden lg:block">
-            <Link 
-              href="/answerkey" 
-              className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white font-bold text-lg py-4 px-6 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-              </svg>
-              Answerkey Calculator
-            </Link>
-          </div>
+        {/* Right Column: Desktop Button & Articles (Only rendered when showBlogs is true) */}
+        {showBlogs && (
+          <section className="space-y-6">
+            
+            {/* DESKTOP ONLY: PROMINENT ANSWERKEY CALCULATOR BUTTON */}
+            <div className="hidden lg:block">
+              <Link 
+                href="/answerkey" 
+                className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white font-bold text-lg py-4 px-6 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                </svg>
+                Answerkey Calculator
+              </Link>
+            </div>
 
-          {/* Sidebar Blogs Card with 100% Fill Fit Images */}
-          {showBlogs && (
+            {/* Sidebar Blogs Card with 100% Fill Fit Images */}
             <div className="space-y-4">
               <h3 className="text-xl font-extrabold text-[#0f172a] pb-2 border-b-2 border-[#0b69ff] inline-block">
                 Latest Updates & Articles
@@ -188,9 +188,9 @@ export default async function HomePage() {
                 </Link>
               </div>
             </div>
-          )}
 
-        </section>
+          </section>
+        )}
 
       </div>
 
