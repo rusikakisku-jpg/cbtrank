@@ -83,8 +83,12 @@ function ResultPageContent() {
     setLoading(true);
     setErrorMessage('');
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
     fetch('/api/answerkey/calculate', {
       method: 'POST',
+      signal: controller.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ans_key_url: targetUrl,
@@ -100,6 +104,7 @@ function ResultPageContent() {
     })
       .then(res => res.json())
       .then(json => {
+        clearTimeout(timeoutId);
         setLoading(false);
         if (json.success && json.data) {
           setResultData(json.data);
@@ -110,9 +115,14 @@ function ResultPageContent() {
         }
       })
       .catch(err => {
+        clearTimeout(timeoutId);
         console.error('Result calculation error:', err);
         setLoading(false);
-        setErrorMessage('Network error occurred while generating analysis.');
+        if (err.name === 'AbortError') {
+          setErrorMessage('Response sheet calculation timed out. The link might be unreachable or expired.');
+        } else {
+          setErrorMessage('Network error occurred while generating analysis.');
+        }
       });
   };
 

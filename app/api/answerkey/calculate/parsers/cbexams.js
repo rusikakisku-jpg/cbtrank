@@ -276,18 +276,22 @@ export async function parseCbexams(html, marksRight, marksWrong, cleanUrl = '', 
   // If there are multiple section inputs and cleanUrl is provided, fetch variant section pages
   if (totalInputs > 1 && cleanUrl) {
     const fetchPromises = [];
-    for (let i = 2; i <= totalInputs; i++) {
+    const maxFetch = Math.min(totalInputs, 6);
+    for (let i = 2; i <= maxFetch; i++) {
       const vUrl = buildVariantUrl(cleanUrl, i);
+      const controller = new AbortController();
+      const tId = setTimeout(() => controller.abort(), 5000);
       fetchPromises.push(
         fetch(vUrl, {
+          signal: controller.signal,
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           },
           cache: 'no-store',
         })
-          .then(res => (res.ok ? res.text() : null))
-          .catch(() => null)
+          .then(res => { clearTimeout(tId); return res.ok ? res.text() : null; })
+          .catch(() => { clearTimeout(tId); return null; })
       );
     }
 

@@ -99,10 +99,13 @@ export async function POST(request) {
       );
     }
 
-    // ── Fetch the response sheet HTML ──
+    // ── Fetch the response sheet HTML (with 10s timeout) ──
     let htmlContent = '';
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const res = await fetch(cleanUrl, {
+        signal: controller.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -110,6 +113,7 @@ export async function POST(request) {
         },
         cache: 'no-store'
       });
+      clearTimeout(timeoutId);
       if (res.ok) {
         htmlContent = await res.text();
       }
