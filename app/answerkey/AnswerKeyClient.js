@@ -141,20 +141,9 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
       sessionStorage.setItem('cbtrank_form_data', JSON.stringify(formData));
     }
 
-    const queryParams = new URLSearchParams({
-      ans_key_url: clean,
-      category,
-      horizontal_category: horizontalCategory,
-      gender,
-      state,
-      paper_language: paperLanguage,
-      marks_right: marksRight,
-      marks_wrong: marksWrong,
-      slug
-    }).toString();
-
-    // ── Instant navigation to result page (shows spinner while calculating) ──
-    router.push(`/result?${queryParams}`);
+    // ── Clean URL navigation to result page (form data is passed securely via sessionStorage) ──
+    const targetPath = slug ? `/result?slug=${encodeURIComponent(slug)}` : '/result';
+    router.push(targetPath);
   };
 
   const statesList = [
