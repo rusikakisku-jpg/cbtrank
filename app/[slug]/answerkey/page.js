@@ -12,25 +12,25 @@ export default async function ExamSlugAnswerKeyPage({ params }) {
 
   if (slug) {
     try {
-      // Fetch exam and its assigned languages in parallel
-      [initialExam, ] = await Promise.all([
+      // TRUE PARALLEL: fetch exam AND languages by slug simultaneously
+      const [examResult, langsBySlug] = await Promise.all([
         firstD1('SELECT * FROM exams WHERE slug = ?', [slug]),
-        Promise.resolve()
-      ]);
-
-      if (initialExam?.id) {
-        initialLanguages = await queryD1(
+        queryD1(
           `SELECT DISTINCT l.id, l.name, l.slug
            FROM languages l
            INNER JOIN exam_languages el ON l.id = el.language_id
-           WHERE el.exam_id = ? AND l.is_active = 1
+           INNER JOIN exams e ON e.id = el.exam_id
+           WHERE e.slug = ? AND l.is_active = 1
            ORDER BY l.name ASC`,
-          [initialExam.id]
-        );
-      }
+          [slug]
+        )
+      ]);
+
+      initialExam = examResult;
+      initialLanguages = langsBySlug || [];
 
       // Fallback: all languages if none assigned to this exam
-      if (!initialLanguages || initialLanguages.length === 0) {
+      if (initialLanguages.length === 0) {
         initialLanguages = await queryD1(
           `SELECT DISTINCT id, name, slug FROM languages WHERE is_active = 1 ORDER BY name ASC`
         );
