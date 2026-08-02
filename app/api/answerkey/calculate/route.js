@@ -317,6 +317,7 @@ export async function POST(request) {
         state,
         paperLanguage:      paper_language,
         provider:           parsed.provider,
+        infoRows:           parsed.infoRows || [],
         sections:           parsed.sections,
       }
     });

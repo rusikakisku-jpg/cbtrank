@@ -238,29 +238,52 @@ function ResultPageContent() {
               <h1 className="text-sm sm:text-base md:text-lg font-extrabold text-slate-900 tracking-tight leading-snug max-w-2xl mx-auto text-center">{resultData.examName}</h1>
             </div>
 
-            {/* Candidate Metadata Grid (Clean Light Cards) */}
+            {/* Candidate Metadata Grid (Clean Light Cards for all infoRows or standard fallback) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 text-xs">
-              
-              <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
-                <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Candidate Name</span>
-                <span className="font-extrabold text-slate-900 text-[11px] sm:text-xs md:text-sm block truncate">{resultData.candidateName}</span>
-              </div>
+              {resultData.infoRows && resultData.infoRows.length > 0 ? (
+                <>
+                  {resultData.infoRows.map((item, i) => (
+                    <div key={i} className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
+                      <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">{item.label}</span>
+                      <span className="font-extrabold text-slate-900 text-[11px] sm:text-xs md:text-sm block truncate">{item.value}</span>
+                    </div>
+                  ))}
+                  {resultData.category && !resultData.infoRows.some(r => r.label.toLowerCase() === 'category') && (
+                    <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
+                      <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Category</span>
+                      <span className="font-extrabold text-slate-900 text-[11px] sm:text-xs md:text-sm block truncate">{resultData.category}</span>
+                    </div>
+                  )}
+                  {resultData.gender && !resultData.infoRows.some(r => r.label.toLowerCase() === 'gender') && (
+                    <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
+                      <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Gender</span>
+                      <span className="font-extrabold text-slate-900 text-[11px] sm:text-xs md:text-sm block truncate">{resultData.gender}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
+                    <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Candidate Name</span>
+                    <span className="font-extrabold text-slate-900 text-[11px] sm:text-xs md:text-sm block truncate">{resultData.candidateName}</span>
+                  </div>
 
-              <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
-                <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Roll / Participant No</span>
-                <span className="font-mono font-bold text-blue-700 text-[11px] sm:text-xs md:text-sm block truncate">{resultData.rollNo}</span>
-              </div>
+                  <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
+                    <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Roll / Participant No</span>
+                    <span className="font-mono font-bold text-blue-700 text-[11px] sm:text-xs md:text-sm block truncate">{resultData.rollNo}</span>
+                  </div>
 
-              <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
-                <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Exam Date & Shift</span>
-                <span className="font-semibold text-slate-800 text-[11px] sm:text-xs block truncate">{resultData.testDate} ({resultData.testTime})</span>
-              </div>
+                  <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
+                    <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Exam Date & Shift</span>
+                    <span className="font-semibold text-slate-800 text-[11px] sm:text-xs block truncate">{resultData.testDate} {resultData.testTime ? `(${resultData.testTime})` : ''}</span>
+                  </div>
 
-              <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
-                <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Test Center</span>
-                <span className="font-semibold text-slate-800 text-[11px] sm:text-xs block truncate">{resultData.testCenter}</span>
-              </div>
-
+                  <div className="bg-slate-50 p-2.5 sm:p-3 rounded-lg sm:rounded-xl border border-slate-200/80 space-y-0.5 min-w-0">
+                    <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold tracking-wider truncate">Test Center</span>
+                    <span className="font-semibold text-slate-800 text-[11px] sm:text-xs block truncate">{resultData.testCenter}</span>
+                  </div>
+                </>
+              )}
             </div>
 
           </div>

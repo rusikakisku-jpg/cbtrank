@@ -102,15 +102,25 @@ function extractCandidateInfo(html) {
     testDate: '',
     testTime: '',
     headerImgUrl: '',
+    examTitle: '',
+    infoRows: [],
   };
 
-  // Header image (first img in .main-info-pnl)
-  const imgMatch = html.match(/class=['"]\s*main-info-pnl\s*['"][^>]*>[\s\S]*?<img[^>]+src=['"]([^'"]+)['"]/i);
-  if (imgMatch) info.headerImgUrl = imgMatch[1];
+  // Scope search area to main-info-pnl block up to grp-cntnr without early cutoff
+  let searchArea = html;
+  const pnlIndex = html.toLowerCase().indexOf('main-info-pnl');
+  if (pnlIndex !== -1) {
+    const grpIndex = html.toLowerCase().indexOf('grp-cntnr', pnlIndex);
+    if (grpIndex !== -1) {
+      searchArea = html.substring(pnlIndex, grpIndex);
+    } else {
+      searchArea = html.substring(pnlIndex, pnlIndex + 12000);
+    }
+  }
 
-  // Extract table rows from .main-info-pnl as key-value pairs
-  const mainPnlMatch = html.match(/class=['"]\s*main-info-pnl\s*['"][^>]*>([\s\S]*?)<\/(?:div|td)>/i);
-  const searchArea = mainPnlMatch ? mainPnlMatch[1] : html;
+  // Header image (first img in search area or global)
+  const imgMatch = searchArea.match(/<img[^>]+src=['"]([^'"]+)['"]/i) || html.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
+  if (imgMatch) info.headerImgUrl = imgMatch[1];
 
   const allRowCells = [];
   const rows = [...searchArea.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
@@ -118,24 +128,31 @@ function extractCandidateInfo(html) {
     const cells = [...row[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
       .map(c => normText(c[1].replace(/<[^>]+>/g, ' ')));
     if (cells.length >= 2) {
-      allRowCells.push(cells);
-      const label = cells[0].toLowerCase();
-      const value = cells[1];
-      if (label.includes('candidate name') || label.includes('participant name') || label.includes('student name')) {
-        info.candidateName = value;
-      } else if (label.includes('roll number') || label.includes('roll no') || label.includes('participant id') || label.includes('candidate id')) {
-        info.rollNo = value;
-      } else if (label.includes('test center') || label.includes('exam center')) {
-        info.testCenter = value;
-      } else if (label.includes('test date') || label.includes('exam date')) {
-        info.testDate = value;
-      } else if (label.includes('test time') || label.includes('shift')) {
-        info.testTime = value;
+      const label = cells[0].trim();
+      const value = cells[1].trim();
+      if (label && value) {
+        allRowCells.push([label, value]);
+        info.infoRows.push({ label, value });
+        const lLower = label.toLowerCase();
+        
+        if (!info.candidateName && (lLower.includes('participant name') || lLower.includes('candidate name') || lLower.includes('student name') || lLower.includes('name'))) {
+          info.candidateName = value;
+        } else if (!info.rollNo && (lLower.includes('roll') || lLower.includes('participant id') || lLower.includes('candidate id') || lLower.includes('application no') || lLower.includes('reg'))) {
+          info.rollNo = value;
+        } else if (!info.testCenter && (lLower.includes('test center') || lLower.includes('exam center') || lLower.includes('venue') || lLower.includes('center'))) {
+          info.testCenter = value;
+        } else if (!info.testDate && (lLower.includes('test date') || lLower.includes('exam date') || lLower.includes('date'))) {
+          info.testDate = value;
+        } else if (!info.testTime && (lLower.includes('test time') || lLower.includes('shift') || lLower.includes('timing') || lLower.includes('time'))) {
+          info.testTime = value;
+        } else if (!info.examTitle && (lLower.includes('subject') || lLower.includes('exam name') || lLower.includes('post') || lLower.includes('paper'))) {
+          info.examTitle = value;
+        }
       }
     }
   }
 
-  // If date/time not directly extracted from key-value labels, run pattern scanner
+  // Fallback date/time pattern scanner if not found via direct label matching
   if (!info.testDate || !info.testTime) {
     const { foundDate, foundTime } = extractDateTimeFromRows(allRowCells);
     if (!info.testDate && foundDate) info.testDate = foundDate;
