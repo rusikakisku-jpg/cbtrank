@@ -61,16 +61,108 @@ export async function POST(request) {
       cleanUrl = 'https://' + cleanUrl;
     }
 
-    // Lenient URL validation: Must be a valid HTTP/HTTPS URL
+    // Must be a valid HTTP/HTTPS URL
+    let parsedUrl;
     try {
-      new URL(cleanUrl);
+      parsedUrl = new URL(cleanUrl);
     } catch (e) {
       return NextResponse.json({ error: 'Invalid URL format. Please paste a valid official response sheet URL.' }, { status: 400 });
     }
 
-    // Log URL to Cloudflare D1
+    const host = parsedUrl.hostname.toLowerCase();
+
+    // ── Helper: check digialm.com or subdomains ──
+    const isDigialm = host === 'digialm.com' || host.endsWith('.digialm.com');
+
+    // ── Helper: check cbexams.com or subdomains ──
+    const isCbexams = host === 'cbexams.com' || host.endsWith('.cbexams.com');
+
+    // ── DOMAIN CHECK: Only digialm.com or cbexams.com allowed ──
+    if (!isDigialm && !isCbexams) {
+      try {
+        await queryD1(
+          'INSERT INTO invalid_answerkey_urls (url, created_at) VALUES (?, DATETIME("now"))',
+          [cleanUrl]
+        );
+      } catch (e) {}
+      return NextResponse.json(
+        { error: 'Please use the official answerkey URL (a digialm.com or cbexams.com page).' },
+        { status: 400 }
+      );
+    }
+
+    // ── digialm.com: URL must end with .html ──
+    if (isDigialm && !parsedUrl.pathname.toLowerCase().endsWith('.html')) {
+      return NextResponse.json(
+        { error: 'Please provide a valid answer key URL that ends with .html' },
+        { status: 400 }
+      );
+    }
+
+    // ── Fetch the response sheet HTML ──
+    let htmlContent = '';
     try {
-      await queryD1('INSERT INTO valid_answerkey_urls (url, created_at) VALUES (?, DATETIME("now"))', [cleanUrl]);
+      const res = await fetch(cleanUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9,hi;q=0.8'
+        },
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        htmlContent = await res.text();
+      }
+    } catch (e) {
+      console.error('Fetch error for URL:', cleanUrl, e);
+    }
+
+    // ── digialm.com: page must contain 'main-info-pnl' ──
+    if (isDigialm) {
+      if (!htmlContent || !htmlContent.toLowerCase().includes('main-info-pnl')) {
+        try {
+          await queryD1(
+            'INSERT INTO invalid_answerkey_urls (url, created_at) VALUES (?, DATETIME("now"))',
+            [cleanUrl]
+          );
+        } catch (e) {}
+        return NextResponse.json(
+          { error: !htmlContent
+              ? 'Unable to fetch the provided URL. Please ensure the link is correct and reachable.'
+              : 'Enter Correct Answerkey Url From Official Website'
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // ── cbexams.com: page must contain <td class="bld"> ──
+    if (isCbexams) {
+      const cb = (htmlContent || '').toLowerCase();
+      const hasBld = cb.includes('<td class="bld">') || cb.includes("<td class='bld'>") || cb.includes('td class="bld"');
+      if (!htmlContent || !hasBld) {
+        try {
+          await queryD1(
+            'INSERT INTO invalid_answerkey_urls (url, created_at) VALUES (?, DATETIME("now"))',
+            [cleanUrl]
+          );
+        } catch (e) {}
+        return NextResponse.json(
+          { error: !htmlContent
+              ? 'Unable to fetch the provided URL. Please ensure the link is correct and reachable.'
+              : 'Enter Correct Answerkey Url From Official Website'
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // ── URL is valid — log to valid_answerkey_urls ──
+    try {
+      await queryD1(
+        'INSERT INTO valid_answerkey_urls (url, created_at) VALUES (?, DATETIME("now"))',
+        [cleanUrl]
+      );
     } catch (e) {}
 
     // Priority 1: Use user-provided custom marks_right & marks_wrong if present
@@ -99,23 +191,6 @@ export async function POST(request) {
       }
     }
 
-    // Fetch the response sheet HTML safely
-    let htmlContent = '';
-    try {
-      const res = await fetch(cleanUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9,hi;q=0.8'
-        },
-        cache: 'no-store'
-      });
-      if (res.ok) {
-        htmlContent = await res.text();
-      }
-    } catch (e) {
-      console.error('Fetch error for URL:', cleanUrl, e);
-    }
 
     // Parse Candidate Details & Header Logo Image from HTML
     let candidateName = 'Candidate (Verified)';
