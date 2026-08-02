@@ -159,7 +159,7 @@ export async function POST(request) {
       );
     } catch (e) {}
 
-    // Priority 1: Use user-provided custom marks_right & marks_wrong if present
+    // ── Priority: user-specified marks, then DB marks ──
     let marksRight = 1.0;
     let marksWrong = 0.25;
     let examTitle = 'Competitive Exam Answer Key';
@@ -175,7 +175,6 @@ export async function POST(request) {
       const examRow = await firstD1('SELECT title, marks_right, marks_wrong FROM exams WHERE slug = ? LIMIT 1', [slug]);
       if (examRow) {
         if (examRow.title) examTitle = cleanText(examRow.title);
-        // Fallback to exam DB formula only if user didn't specify custom marks
         if (marks_right === undefined && examRow.marks_right !== null && examRow.marks_right !== undefined) {
           marksRight = parseFloat(examRow.marks_right);
         }
@@ -185,197 +184,59 @@ export async function POST(request) {
       }
     }
 
-
-    // Parse Candidate Details & Header Logo Image from HTML
-    let candidateName = 'Candidate (Verified)';
-    let rollNo = '2409100891';
-    let testCenter = 'Online CBT Exam Center';
-    let testDate = '2026';
-    let testTime = 'Shift-1';
-    let headerImgUrl = '';
-
-    if (htmlContent) {
-      // Extract Header Logo/Image
-      const imgMatch = htmlContent.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
-      if (imgMatch && imgMatch[1]) {
-        headerImgUrl = resolveAbsoluteUrl(imgMatch[1], cleanUrl);
-      }
-
-      const rollMatch = htmlContent.match(/(?:Roll\s*Number|Participant\s*ID|Candidate\s*ID)\s*[:\t]*<\/td>\s*<td[^>]*>(.*?)<\/td>/i) || htmlContent.match(/(?:Roll\s*Number|Participant\s*ID|Candidate\s*ID)\s*[:\t]*([A-Z0-9_-]+)/i);
-      if (rollMatch) {
-        const parsedRoll = cleanText(rollMatch[1]);
-        if (parsedRoll) rollNo = parsedRoll;
-      }
-
-      const nameMatch = htmlContent.match(/(?:Participant\s*Name|Candidate\s*Name|Student\s*Name)\s*[:\t]*<\/td>\s*<td[^>]*>(.*?)<\/td>/i) || htmlContent.match(/(?:Participant\s*Name|Candidate\s*Name)\s*[:\t]*([A-Z\s]+)/i);
-      if (nameMatch) {
-        const parsedName = cleanText(nameMatch[1]);
-        if (parsedName) candidateName = parsedName;
-      }
-
-      const centerMatch = htmlContent.match(/(?:Test\s*Center\s*Name|Exam\s*Center)\s*[:\t]*<\/td>\s*<td[^>]*>(.*?)<\/td>/i);
-      if (centerMatch) {
-        const parsedCenter = cleanText(centerMatch[1]);
-        if (parsedCenter) testCenter = parsedCenter;
-      }
-
-      const dateMatch = htmlContent.match(/(?:Test\s*Date|Exam\s*Date)\s*[:\t]*<\/td>\s*<td[^>]*>(.*?)<\/td>/i);
-      if (dateMatch) {
-        const parsedDate = cleanText(dateMatch[1]);
-        if (parsedDate) testDate = parsedDate;
-      }
-
-      const timeMatch = htmlContent.match(/(?:Test\s*Time|Shift)\s*[:\t]*<\/td>\s*<td[^>]*>(.*?)<\/td>/i);
-      if (timeMatch) {
-        const parsedTime = cleanText(timeMatch[1]);
-        if (parsedTime) testTime = parsedTime;
-      }
-
-      const subjectMatch = htmlContent.match(/(?:Subject|Exam\s*Name)\s*[:\t]*<\/td>\s*<td[^>]*>(.*?)<\/td>/i);
-      if (subjectMatch && !slug) {
-        const parsedSubj = cleanText(subjectMatch[1]);
-        if (parsedSubj) examTitle = parsedSubj;
-      }
+    // ── ROUTE to dedicated provider parser ──
+    let parsed;
+    if (isDigialm) {
+      const { parseDigialm } = await import('./parsers/digialm.js');
+      parsed = parseDigialm(htmlContent, marksRight, marksWrong, slug);
+    } else {
+      const { parseCbexams } = await import('./parsers/cbexams.js');
+      parsed = parseCbexams(htmlContent, marksRight, marksWrong, slug);
     }
 
-    // Parse Questions & Section Breakdown
-    let totalQuestions = 0;
-    let attempted = 0;
-    let correct = 0;
-    let wrong = 0;
-    let unattempted = 0;
-    let sections = [];
+    // Apply fallback defaults for empty candidate fields
+    if (!parsed.candidateName) parsed.candidateName = 'Candidate (Verified)';
+    if (!parsed.rollNo)        parsed.rollNo        = 'N/A';
+    if (!parsed.testCenter)    parsed.testCenter    = 'Online CBT Exam Center';
+    if (!parsed.testDate)      parsed.testDate      = '';
+    if (!parsed.testTime)      parsed.testTime      = '';
+    if (!parsed.headerImgUrl)  parsed.headerImgUrl  = '';
 
-    if (htmlContent) {
-      const sectionBlocks = htmlContent.split(/class=["']?section-cntnr["']?/i);
-      
-      if (sectionBlocks.length > 1) {
-        sectionBlocks.slice(1).forEach((secHtml, idx) => {
-          let secName = `Section ${idx + 1}`;
-          const secLblMatch = secHtml.match(/class=["']?section-lbl["']?[^>]*>(.*?)<\/div>/is);
-          if (secLblMatch) {
-            let extractedLbl = cleanText(secLblMatch[1]).replace(/^Section\s*:/i, '').trim();
-            if (extractedLbl) secName = cleanText(extractedLbl);
-          }
-
-          const qBlocks = secHtml.split(/class=["']?question-pnl["']?/i).slice(1);
-          let secTotal = qBlocks.length;
-          let secAttempted = 0;
-          let secCorrect = 0;
-          let secWrong = 0;
-
-          qBlocks.forEach((qHtml) => {
-            const chosenMatch = qHtml.match(/Chosen\s*Option\s*[:\t]*<\/td>\s*<td[^>]*>(.*?)<\/td>/i) || qHtml.match(/Chosen\s*Option\s*[:\t]*([1-4A-D])/i);
-            let chosenOpt = null;
-            if (chosenMatch) {
-              const rawVal = cleanText(chosenMatch[1]);
-              if (rawVal && rawVal !== '--' && rawVal !== '-' && rawVal !== 'Not Answered') {
-                chosenOpt = rawVal;
-              }
-            }
-
-            const rightAnsMatch = qHtml.match(/class=["']?[^"']*rightAns[^"']*["']?[^>]*>(.*?)<\/td>/is);
-            let rightOpt = null;
-            if (rightAnsMatch) {
-              const rText = cleanText(rightAnsMatch[1]);
-              const optNumMatch = rText.match(/([1-4])\./) || rText.match(/^([1-4])$/);
-              if (optNumMatch) rightOpt = optNumMatch[1];
-            }
-
-            if (chosenOpt) {
-              secAttempted++;
-              if (rightOpt && (chosenOpt === rightOpt || chosenOpt.toLowerCase() === rightOpt.toLowerCase())) {
-                secCorrect++;
-              } else {
-                secWrong++;
-              }
-            }
-          });
-
-          const secRaw = (secCorrect * marksRight) - (secWrong * marksWrong);
-          sections.push({
-            name: secName || `Section ${idx + 1}`,
-            total: secTotal,
-            attempted: secAttempted,
-            correct: secCorrect,
-            wrong: secWrong,
-            unattempted: secTotal - secAttempted,
-            rawScore: parseFloat(secRaw.toFixed(2))
-          });
-
-          totalQuestions += secTotal;
-          attempted += secAttempted;
-          correct += secCorrect;
-          wrong += secWrong;
-        });
-      }
+    // Resolve relative image URLs
+    if (parsed.headerImgUrl && !parsed.headerImgUrl.startsWith('http')) {
+      parsed.headerImgUrl = resolveAbsoluteUrl(parsed.headerImgUrl, cleanUrl);
     }
-
-    // Fallback evaluation if regex didn't extract section blocks
-    if (totalQuestions === 0) {
-      if (htmlContent) {
-        const qMatches = htmlContent.match(/question-pnl|question-box|tbl-question/gi);
-        if (qMatches && qMatches.length > 0) {
-          totalQuestions = qMatches.length;
-          const chosenMatches = htmlContent.match(/Chosen\s*Option\s*[:\t]*<\/td>\s*<td[^>]*>\s*([1-4])\s*<\/td>/gi) || [];
-          attempted = chosenMatches.length;
-          const rightMatches = htmlContent.match(/class=["']?[^"']*rightAns[^"']*["']/gi) || [];
-          correct = Math.min(attempted, Math.round(rightMatches.length * 0.8));
-          wrong = attempted - correct;
-        }
-      }
-      
-      // Default standard evaluation if no HTML or failed fetch
-      if (totalQuestions === 0) {
-        totalQuestions = 100;
-        attempted = 86;
-        correct = 74;
-        wrong = 12;
-      }
-    }
-
-    unattempted = totalQuestions - attempted;
-    const rawScore = parseFloat(((correct * marksRight) - (wrong * marksWrong)).toFixed(2));
-    const maxPossible = totalQuestions * marksRight;
-    const percentage = Math.min(100, Math.max(0, (rawScore / (maxPossible || 1)) * 100));
-    const normalizedScore = parseFloat((rawScore * 1.065 + 1.25).toFixed(2));
-    const percentile = parseFloat((85 + (percentage * 0.145)).toFixed(2));
-    
-    const estimatedTotalCandidates = 45000 + (totalQuestions * 500);
-    const overallRank = Math.max(1, Math.round(estimatedTotalCandidates * (1 - (percentile / 100))));
-    const categoryRank = Math.max(1, Math.round(overallRank * 0.28));
 
     return NextResponse.json({
       success: true,
       data: {
-        candidateName,
-        rollNo,
-        examName: examTitle,
-        headerImgUrl,
-        testCenter,
-        testDate,
-        testTime,
-        totalQuestions,
-        attempted,
-        correct,
-        wrong,
-        unattempted,
-        marksRight,
-        marksWrong,
-        rawScore,
-        normalizedScore,
-        percentile,
-        overallRank,
-        categoryRank,
-        totalCandidates: estimatedTotalCandidates,
+        candidateName:      parsed.candidateName,
+        rollNo:             parsed.rollNo,
+        examName:           examTitle || parsed.examTitle || 'Answer Key Result',
+        headerImgUrl:       parsed.headerImgUrl,
+        testCenter:         parsed.testCenter,
+        testDate:           parsed.testDate,
+        testTime:           parsed.testTime,
+        totalQuestions:     parsed.totalQuestions,
+        attempted:          parsed.attempted,
+        correct:            parsed.correct,
+        wrong:              parsed.wrong,
+        unattempted:        parsed.unattempted,
+        marksRight:         parsed.marksRight,
+        marksWrong:         parsed.marksWrong,
+        rawScore:           parsed.rawScore,
+        normalizedScore:    parsed.normalizedScore,
+        percentile:         parsed.percentile,
+        overallRank:        parsed.overallRank,
+        categoryRank:       parsed.categoryRank,
+        totalCandidates:    parsed.totalCandidates,
         category,
         horizontalCategory: horizontal_category,
         gender,
         state,
-        paperLanguage: paper_language,
-        sections: sections.length > 0 ? sections : [
-          { name: 'Full Performance Breakdown', total: totalQuestions, attempted, correct, wrong, unattempted, rawScore }
-        ]
+        paperLanguage:      paper_language,
+        provider:           parsed.provider,
+        sections:           parsed.sections,
       }
     });
 
