@@ -86,7 +86,7 @@ export async function POST(request) {
         );
       } catch (e) {}
       return NextResponse.json(
-        { error: 'Please use the official answerkey URL (a digialm.com or cbexams.com page).' },
+        { error: 'Enter Official Answerkey Url' },
         { status: 400 }
       );
     }
@@ -94,7 +94,7 @@ export async function POST(request) {
     // ── digialm.com: URL must end with .html ──
     if (isDigialm && !parsedUrl.pathname.toLowerCase().endsWith('.html')) {
       return NextResponse.json(
-        { error: 'Please provide a valid answer key URL that ends with .html' },
+        { error: 'Enter Official Answerkey Url' },
         { status: 400 }
       );
     }
@@ -127,10 +127,7 @@ export async function POST(request) {
           );
         } catch (e) {}
         return NextResponse.json(
-          { error: !htmlContent
-              ? 'Unable to fetch the provided URL. Please ensure the link is correct and reachable.'
-              : 'Enter Correct Answerkey Url From Official Website'
-          },
+          { error: 'Link either expired or broken.' },
           { status: 400 }
         );
       }
@@ -148,10 +145,7 @@ export async function POST(request) {
           );
         } catch (e) {}
         return NextResponse.json(
-          { error: !htmlContent
-              ? 'Unable to fetch the provided URL. Please ensure the link is correct and reachable.'
-              : 'Enter Correct Answerkey Url From Official Website'
-          },
+          { error: 'Link either expired or broken.' },
           { status: 400 }
         );
       }

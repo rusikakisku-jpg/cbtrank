@@ -108,7 +108,7 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
 
       if (!res.ok || !json.success) {
         // Show error on form — do NOT redirect
-        setErrorMessage(json.error || 'Invalid answer key URL. Please check and try again.');
+        setErrorMessage(json.error || 'Enter Official Answerkey Url');
         setLoading(false);
         return;
       }
