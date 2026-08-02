@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import Script from 'next/script';
