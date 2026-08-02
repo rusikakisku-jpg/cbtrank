@@ -348,30 +348,36 @@ function ResultPageContent() {
             <h3 className="text-[11px] sm:text-xs font-black text-slate-900 uppercase tracking-wider">
               Overall Score & Rank Analysis
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3 text-center">
               
-              <div className="bg-blue-50/80 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-blue-200/80 shadow-sm transition-all hover:shadow-md">
+              <div className="bg-blue-50/80 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-blue-200/80 shadow-sm transition-all hover:shadow-md">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-0.5">Raw Score</span>
-                <span className="text-xl sm:text-2xl md:text-3xl font-black text-blue-600 font-mono">{resultData.rawScore}</span>
+                <span className="text-xl sm:text-2xl font-black text-blue-600 font-mono">{resultData.rawScore}</span>
                 <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5 font-medium">+{resultData.marksRight} / -{resultData.marksWrong}</span>
               </div>
 
-              <div className="bg-emerald-50/80 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-emerald-200/80 shadow-sm transition-all hover:shadow-md">
+              <div className="bg-emerald-50/80 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-emerald-200/80 shadow-sm transition-all hover:shadow-md">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-0.5">Est. Normalized</span>
-                <span className="text-xl sm:text-2xl md:text-3xl font-black text-emerald-600 font-mono">{resultData.normalizedScore}</span>
+                <span className="text-xl sm:text-2xl font-black text-emerald-600 font-mono">{resultData.normalizedScore}</span>
                 <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5 font-medium">Pct: {resultData.percentile}%</span>
               </div>
 
-              <div className="bg-purple-50/80 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-purple-200/80 shadow-sm transition-all hover:shadow-md">
+              <div className="bg-purple-50/80 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-purple-200/80 shadow-sm transition-all hover:shadow-md">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-0.5">Overall Rank</span>
-                <span className="text-xl sm:text-2xl md:text-3xl font-black text-purple-600 font-mono">#{resultData.overallRank}</span>
+                <span className="text-xl sm:text-2xl font-black text-purple-600 font-mono">#{resultData.overallRank}</span>
                 <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5 font-medium truncate">Total: {resultData.totalCandidates?.toLocaleString()}</span>
               </div>
 
-              <div className="bg-indigo-50/80 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-indigo-200/80 shadow-sm transition-all hover:shadow-md">
+              <div className="bg-indigo-50/80 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-indigo-200/80 shadow-sm transition-all hover:shadow-md">
                 <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-0.5">Category Rank</span>
-                <span className="text-xl sm:text-2xl md:text-3xl font-black text-indigo-600 font-mono">#{resultData.categoryRank}</span>
-                <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5 font-medium truncate">Cat: {resultData.category}</span>
+                <span className="text-xl sm:text-2xl font-black text-indigo-600 font-mono">#{resultData.categoryRank}</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5 font-medium truncate">Cat: {resultData.category} ({resultData.categoryTotal || ''})</span>
+              </div>
+
+              <div className="bg-amber-50/80 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-amber-200/80 shadow-sm transition-all hover:shadow-md col-span-2 sm:col-span-1">
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block mb-0.5">Shift Rank</span>
+                <span className="text-xl sm:text-2xl font-black text-amber-600 font-mono">#{resultData.shiftRank || 1}</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 block mt-0.5 font-medium truncate">Shift Total: {resultData.shiftTotal || 1}</span>
               </div>
 
             </div>

@@ -164,10 +164,156 @@ function parseQuestions(html, marksRight, marksWrong) {
   return { sections, totalQuestions, attempted: right + wrong, correct: right, wrong, unattempted };
 }
 
-// ── MAIN: Parse cbexams.com HTML ──
-export function parseCbexams(html, marksRight, marksWrong, slug = '') {
+// ── Helper to build variant section URLs ──
+function buildVariantUrl(baseUrl, index) {
+  try {
+    const urlObj = new URL(baseUrl);
+    const pathname = urlObj.pathname;
+    const segments = pathname.split('/');
+    let filename = segments[segments.length - 1];
+
+    let newFilename = filename;
+    if (/^ViewCandResponse\d*\.aspx$/i.test(filename)) {
+      newFilename = index === 1 ? 'ViewCandResponse.aspx' : `ViewCandResponse${index}.aspx`;
+    } else if (filename.toLowerCase().includes('viewcandresponse')) {
+      newFilename = filename.replace(/ViewCandResponse\d*/i, index === 1 ? 'ViewCandResponse' : `ViewCandResponse${index}`);
+    } else {
+      newFilename = index === 1 ? 'ViewCandResponse.aspx' : `ViewCandResponse${index}.aspx`;
+    }
+
+    segments[segments.length - 1] = newFilename;
+    urlObj.pathname = segments.join('/');
+    return urlObj.href;
+  } catch (e) {
+    return baseUrl;
+  }
+}
+
+// ── Parse single variant section HTML page ──
+function parseSingleSectionPage(html, sectionIndex, marksRight, marksWrong) {
+  // Find subject / section title from #lblsubject or <title>
+  let sectionTitle = `Section ${sectionIndex}`;
+  const lblSubjectMatch = html.match(/id=['"]lblsubject['"][^>]*>([\s\S]*?)<\/span>/i);
+  if (lblSubjectMatch) {
+    const full = normText(lblSubjectMatch[1].replace(/<[^>]+>/g, ''));
+    const inParen = full.match(/\(([^)]+)\)\s*$/);
+    sectionTitle = inParen ? inParen[1].trim() : full;
+  } else {
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (titleMatch) {
+      const tText = normText(titleMatch[1].replace(/<[^>]+>/g, ''));
+      if (tText && !tText.toLowerCase().includes('cbexam')) sectionTitle = tText;
+    }
+  }
+
+  // Find all question tables (table with width=100% containing Q.No)
+  const qTablePattern = /<table[^>]*width=['"]100%['"][^>]*>([\s\S]*?)<\/table>/gi;
+  const allTables = [...html.matchAll(qTablePattern)];
+  const qTables = allTables.filter(t => /Q\.No/i.test(t[1]));
+
+  let secTotal = qTables.length;
+  let secRight = 0, secWrong = 0, secUnattempted = 0;
+
+  for (const qt of qTables) {
+    const inner = qt[1];
+    const innerLower = inner.toLowerCase();
+
+    const bgColors = [...inner.matchAll(/bgcolor=['"]([^'"]+)['"]/gi)].map(m => m[1].toLowerCase());
+    const hasGreen = bgColors.some(c => c.includes('green'));
+    const hasRed = bgColors.some(c => c.includes('red'));
+    const hasGray = bgColors.some(c => c.includes('gray') || c.includes('grey'));
+    const hasNotAnswered = innerLower.includes('not answered') || innerLower.includes('not attempted') || innerLower.includes('not attempt');
+
+    if (hasGray || hasNotAnswered) {
+      secUnattempted++;
+    } else if (hasGreen) {
+      secRight++;
+    } else if (hasRed) {
+      secWrong++;
+    } else {
+      secUnattempted++;
+    }
+  }
+
+  const secAttempted = secRight + secWrong;
+  const secRawScore = parseFloat(((secRight * marksRight) - (secWrong * marksWrong)).toFixed(2));
+
+  return {
+    section: {
+      name: sectionTitle,
+      total: secTotal,
+      attempted: secAttempted,
+      correct: secRight,
+      wrong: secWrong,
+      unattempted: secUnattempted,
+      rawScore: secRawScore,
+    },
+    totalQuestions: secTotal,
+    attempted: secAttempted,
+    correct: secRight,
+    wrong: secWrong,
+    unattempted: secUnattempted,
+  };
+}
+
+// ── MAIN: Parse cbexams.com HTML (with multi-page section support) ──
+export async function parseCbexams(html, marksRight, marksWrong, cleanUrl = '', slug = '') {
   const candidateInfo = extractCandidateInfo(html);
-  const { sections, totalQuestions, attempted, correct, wrong, unattempted } = parseQuestions(html, marksRight, marksWrong);
+
+  // Count section inputs in main HTML
+  const inputMatches = [...html.matchAll(/<table[^>]*width=['"]30%['"][^>]*>[\s\S]*?<input/gi)]
+    .concat([...html.matchAll(/<input[^>]*name=['"]P[^'"]*['"]/gi)]);
+  
+  let totalInputs = inputMatches.length;
+  if (totalInputs <= 0) {
+    // fallback check for generic inputs inside response table
+    const genericInputs = [...html.matchAll(/<input[^>]*type=['"]button['"][^>]*>/gi)];
+    totalInputs = Math.max(1, genericInputs.length);
+  }
+
+  const sectionPages = [html];
+
+  // If there are multiple section inputs and cleanUrl is provided, fetch variant section pages
+  if (totalInputs > 1 && cleanUrl) {
+    const fetchPromises = [];
+    for (let i = 2; i <= totalInputs; i++) {
+      const vUrl = buildVariantUrl(cleanUrl, i);
+      fetchPromises.push(
+        fetch(vUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+          cache: 'no-store',
+        })
+          .then(res => (res.ok ? res.text() : null))
+          .catch(() => null)
+      );
+    }
+
+    const fetchedVariantHtmls = await Promise.all(fetchPromises);
+    for (const vHtml of fetchedVariantHtmls) {
+      if (vHtml && vHtml.includes('<table')) {
+        sectionPages.push(vHtml);
+      }
+    }
+  }
+
+  // Parse each section page
+  const sections = [];
+  let totalQuestions = 0, attempted = 0, correct = 0, wrong = 0, unattempted = 0;
+
+  sectionPages.forEach((pageHtml, idx) => {
+    const parsedSec = parseSingleSectionPage(pageHtml, idx + 1, marksRight, marksWrong);
+    if (parsedSec.totalQuestions > 0 || sectionPages.length === 1) {
+      sections.push(parsedSec.section);
+      totalQuestions += parsedSec.totalQuestions;
+      attempted += parsedSec.attempted;
+      correct += parsedSec.correct;
+      wrong += parsedSec.wrong;
+      unattempted += parsedSec.unattempted;
+    }
+  });
 
   const rawScore = parseFloat(((correct * marksRight) - (wrong * marksWrong)).toFixed(2));
   const maxPossible = totalQuestions * marksRight;
@@ -193,7 +339,9 @@ export function parseCbexams(html, marksRight, marksWrong, slug = '') {
     overallRank,
     categoryRank,
     totalCandidates: estimatedTotal,
-    sections,
+    sections: sections.length > 0 ? sections : [
+      { name: 'Full Exam', total: totalQuestions, attempted, correct, wrong, unattempted, rawScore }
+    ],
     provider: 'cbexams',
   };
 }

@@ -35,6 +35,64 @@ function chosenToIndex(s) {
   return null;
 }
 
+// ── Helper to scan date & time from rows/text ──
+function extractDateTimeFromRows(rows) {
+  let foundDate = '';
+  let foundTime = '';
+
+  const datePatterns = [
+    /\b(\d{4}-\d{2}-\d{2})\b/,
+    /\b(\d{1,2}-\d{1,2}-\d{4})\b/,
+    /\b(\d{1,2}\/\d{1,2}\/\d{4})\b/,
+    /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/i
+  ];
+
+  const timePattern = /\b\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?(?:\s*(?:-|–|—|to)\s*\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?)?\b/;
+  const timePattern2 = /\b\d{1,2}(?::\d{2})?\s*(?:[AaPp][Mm])(?:\s*(?:-|–|—|to)\s*\d{1,2}(?::\d{2})?\s*(?:[AaPp][Mm]))?\b/;
+
+  for (const r of rows) {
+    const text = normText(Array.isArray(r) ? r.join(' ') : String(r));
+    if (!text) continue;
+    const lower = text.toLowerCase();
+
+    if (!foundDate && (lower.includes('date') || lower.includes('exam') || lower.includes('test'))) {
+      for (const pat of datePatterns) {
+        const m = text.match(pat);
+        if (m) { foundDate = m[1]; break; }
+      }
+    }
+
+    if (!foundTime && (lower.includes('time') || lower.includes('shift') || lower.includes('report'))) {
+      const mt = text.match(timePattern) || text.match(timePattern2);
+      if (mt) { foundTime = mt[0]; }
+    }
+
+    if (foundDate && foundTime) break;
+  }
+
+  // Fallback scan across all rows if missing
+  if (!foundDate) {
+    for (const r of rows) {
+      const text = normText(Array.isArray(r) ? r.join(' ') : String(r));
+      for (const pat of datePatterns) {
+        const m = text.match(pat);
+        if (m) { foundDate = m[1]; break; }
+      }
+      if (foundDate) break;
+    }
+  }
+
+  if (!foundTime) {
+    for (const r of rows) {
+      const text = normText(Array.isArray(r) ? r.join(' ') : String(r));
+      const mt = text.match(timePattern);
+      if (mt) { foundTime = mt[0]; break; }
+    }
+  }
+
+  return { foundDate, foundTime };
+}
+
 // ── Extract candidate info from .main-info-pnl ──
 function extractCandidateInfo(html) {
   const info = {
@@ -54,11 +112,13 @@ function extractCandidateInfo(html) {
   const mainPnlMatch = html.match(/class=['"]\s*main-info-pnl\s*['"][^>]*>([\s\S]*?)<\/(?:div|td)>/i);
   const searchArea = mainPnlMatch ? mainPnlMatch[1] : html;
 
+  const allRowCells = [];
   const rows = [...searchArea.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)];
   for (const row of rows) {
     const cells = [...row[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)]
       .map(c => normText(c[1].replace(/<[^>]+>/g, ' ')));
     if (cells.length >= 2) {
+      allRowCells.push(cells);
       const label = cells[0].toLowerCase();
       const value = cells[1];
       if (label.includes('candidate name') || label.includes('participant name') || label.includes('student name')) {
@@ -74,6 +134,14 @@ function extractCandidateInfo(html) {
       }
     }
   }
+
+  // If date/time not directly extracted from key-value labels, run pattern scanner
+  if (!info.testDate || !info.testTime) {
+    const { foundDate, foundTime } = extractDateTimeFromRows(allRowCells);
+    if (!info.testDate && foundDate) info.testDate = foundDate;
+    if (!info.testTime && foundTime) info.testTime = foundTime;
+  }
+
   return info;
 }
 

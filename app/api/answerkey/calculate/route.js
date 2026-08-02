@@ -191,7 +191,7 @@ export async function POST(request) {
       parsed = parseDigialm(htmlContent, marksRight, marksWrong, slug);
     } else {
       const { parseCbexams } = await import('./parsers/cbexams.js');
-      parsed = parseCbexams(htmlContent, marksRight, marksWrong, slug);
+      parsed = await parseCbexams(htmlContent, marksRight, marksWrong, cleanUrl, slug);
     }
 
     // Apply fallback defaults for empty candidate fields
@@ -205,6 +205,84 @@ export async function POST(request) {
     // Resolve relative image URLs
     if (parsed.headerImgUrl && !parsed.headerImgUrl.startsWith('http')) {
       parsed.headerImgUrl = resolveAbsoluteUrl(parsed.headerImgUrl, cleanUrl);
+    }
+
+    // ── REAL D1-BASED RANKING SYSTEM ──
+    let realOverallRank = parsed.overallRank;
+    let realOverallTotal = parsed.totalCandidates;
+    let realCategoryRank = parsed.categoryRank;
+    let realCategoryTotal = Math.round(parsed.totalCandidates * 0.28);
+    let realShiftRank = Math.max(1, Math.round(parsed.overallRank * 0.15));
+    let realShiftTotal = Math.round(parsed.totalCandidates * 0.15);
+
+    try {
+      // Ensure user_ranks table exists
+      await queryD1(`
+        CREATE TABLE IF NOT EXISTS user_ranks (
+          url_hash TEXT PRIMARY KEY,
+          url TEXT,
+          exam_slug TEXT,
+          total_marks REAL,
+          category TEXT,
+          gender TEXT,
+          test_date TEXT,
+          test_time TEXT,
+          created_at TEXT,
+          updated_at TEXT
+        )
+      `);
+
+      // Hash cleanUrl
+      const msgUint8 = new TextEncoder().encode(cleanUrl);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const urlHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const targetSlug = slug || 'default';
+      const targetScore = parsed.rawScore;
+
+      // Upsert current submission score into user_ranks
+      await queryD1(`
+        INSERT INTO user_ranks (url_hash, url, exam_slug, total_marks, category, gender, test_date, test_time, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'), DATETIME('now'))
+        ON CONFLICT(url_hash) DO UPDATE SET
+          total_marks = excluded.total_marks,
+          category = excluded.category,
+          gender = excluded.gender,
+          test_date = excluded.test_date,
+          test_time = excluded.test_time,
+          updated_at = DATETIME('now')
+      `, [urlHash, cleanUrl, targetSlug, targetScore, category, gender, parsed.testDate, parsed.testTime]);
+
+      // Query real DB ranks
+      const higherCountRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND total_marks > ?`, [targetSlug, targetScore]);
+      const totalCountRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ?`, [targetSlug]);
+      
+      const catHigherRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND category = ? AND total_marks > ?`, [targetSlug, category, targetScore]);
+      const catTotalRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND category = ?`, [targetSlug, category]);
+
+      let shiftHigherRow = null;
+      let shiftTotalRow = null;
+      if (parsed.testDate && parsed.testTime) {
+        shiftHigherRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND test_date = ? AND test_time = ? AND total_marks > ?`, [targetSlug, parsed.testDate, parsed.testTime, targetScore]);
+        shiftTotalRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND test_date = ? AND test_time = ?`, [targetSlug, parsed.testDate, parsed.testTime]);
+      }
+
+      if (totalCountRow && totalCountRow.cnt > 0) {
+        realOverallRank = (higherCountRow?.cnt || 0) + 1;
+        realOverallTotal = totalCountRow.cnt;
+      }
+
+      if (catTotalRow && catTotalRow.cnt > 0) {
+        realCategoryRank = (catHigherRow?.cnt || 0) + 1;
+        realCategoryTotal = catTotalRow.cnt;
+      }
+
+      if (shiftTotalRow && shiftTotalRow.cnt > 0) {
+        realShiftRank = (shiftHigherRow?.cnt || 0) + 1;
+        realShiftTotal = shiftTotalRow.cnt;
+      }
+    } catch (e) {
+      console.error('D1 Rank Calculation Warning:', e);
     }
 
     return NextResponse.json({
@@ -227,9 +305,12 @@ export async function POST(request) {
         rawScore:           parsed.rawScore,
         normalizedScore:    parsed.normalizedScore,
         percentile:         parsed.percentile,
-        overallRank:        parsed.overallRank,
-        categoryRank:       parsed.categoryRank,
-        totalCandidates:    parsed.totalCandidates,
+        overallRank:        realOverallRank,
+        categoryRank:       realCategoryRank,
+        shiftRank:          realShiftRank,
+        totalCandidates:    realOverallTotal,
+        categoryTotal:      realCategoryTotal,
+        shiftTotal:         realShiftTotal,
         category,
         horizontalCategory: horizontal_category,
         gender,
