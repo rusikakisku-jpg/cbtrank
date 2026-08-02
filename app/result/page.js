@@ -83,8 +83,15 @@ function ResultPageContent() {
     setLoading(true);
     setErrorMessage('');
 
+    // Check if user manually pasted raw HTML code in form
+    let pastedHtml = typeof window !== 'undefined' ? sessionStorage.getItem('cbtrank_pasted_html') : null;
+
     // Client-first direct fetch to bypass datacenter IP blocks (user is on residential ISP)
     const attemptClientFetch = async () => {
+      if (pastedHtml) {
+        sessionStorage.removeItem('cbtrank_pasted_html');
+        return pastedHtml;
+      }
       try {
         const clientCtrl = new AbortController();
         const clientTimer = setTimeout(() => clientCtrl.abort(), 6000);

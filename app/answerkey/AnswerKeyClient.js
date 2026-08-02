@@ -29,6 +29,8 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
       : '0.25'
   );
 
+  const [inputMode, setInputMode] = useState('url'); // 'url' | 'html'
+  const [rawHtmlCode, setRawHtmlCode] = useState('');
   const [consentChecked, setConsentChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -92,34 +94,49 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!ansKeyUrl.trim() || !category || !gender || !consentChecked) {
+
+    if (!category || !gender || !consentChecked) {
       setErrorMessage('Please fill all required fields and accept the consent checkbox.');
       return;
     }
 
-    const clean = ansKeyUrl.trim();
-    let urlObj;
-    try {
-      urlObj = new URL(clean.startsWith('http') ? clean : 'https://' + clean);
-    } catch (err) {
-      setErrorMessage('Enter Official Answerkey Url');
-      return;
-    }
+    let clean = ansKeyUrl.trim();
 
-    const host = urlObj.hostname.toLowerCase();
-    const isDigialm = host === 'digialm.com' || host.endsWith('.digialm.com');
-    const isCbexams = host === 'cbexams.com' || host.endsWith('.cbexams.com');
+    if (inputMode === 'html') {
+      if (!rawHtmlCode.trim()) {
+        setErrorMessage('Please paste the raw response sheet HTML code.');
+        return;
+      }
+      if (!clean) {
+        clean = 'https://rrb.digialm.com/response_sheet.html';
+      }
+    } else {
+      if (!clean) {
+        setErrorMessage('Please fill all required fields and accept the consent checkbox.');
+        return;
+      }
 
-    // ── Instant Domain Validation ──
-    if (!isDigialm && !isCbexams) {
-      setErrorMessage('Enter Official Answerkey Url');
-      return;
-    }
+      let urlObj;
+      try {
+        urlObj = new URL(clean.startsWith('http') ? clean : 'https://' + clean);
+      } catch (err) {
+        setErrorMessage('Enter Official Answerkey Url');
+        return;
+      }
 
-    // ── Instant Format Validation (.html required for digialm.com) ──
-    if (isDigialm && !urlObj.pathname.toLowerCase().endsWith('.html')) {
-      setErrorMessage('Enter Official Answerkey Url');
-      return;
+      const host = urlObj.hostname.toLowerCase();
+      const isDigialm = host === 'digialm.com' || host.endsWith('.digialm.com');
+      const isCbexams = host === 'cbexams.com' || host.endsWith('.cbexams.com');
+
+      if (!isDigialm && !isCbexams) {
+        setErrorMessage('Enter Official Answerkey Url');
+        return;
+      }
+
+      if (isDigialm && !urlObj.pathname.toLowerCase().endsWith('.html')) {
+        setErrorMessage('Enter Official Answerkey Url');
+        return;
+      }
     }
 
     setLoading(true);
@@ -139,6 +156,11 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
 
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('cbtrank_form_data', JSON.stringify(formData));
+      if (inputMode === 'html' && rawHtmlCode.trim()) {
+        sessionStorage.setItem('cbtrank_pasted_html', rawHtmlCode.trim());
+      } else {
+        sessionStorage.removeItem('cbtrank_pasted_html');
+      }
     }
 
     // ── Clean URL navigation: strictly /result (all parameters passed via sessionStorage) ──
@@ -258,22 +280,68 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
 
             <form onSubmit={handleSubmit} className="space-y-3.5">
               
-              {/* Answer Key URL */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Answer Key URL <span className="text-red-500">*</span>
-                </label>
-                <input 
-                  type="url" 
-                  required
-                  value={ansKeyUrl}
-                  onChange={(e) => setAnsKeyUrl(e.target.value)}
-                  className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm font-mono"
-                />
-                <p className="text-[11px] text-slate-500 mt-1 font-medium">
-                  Use the official {examLabel}answer key link (the page where questions are visible).
-                </p>
+              {/* Input Mode Switcher (URL vs Raw HTML Code) */}
+              <div className="flex items-center justify-between bg-slate-100/90 p-1 rounded-xl border border-slate-200/90 text-xs">
+                <button
+                  type="button"
+                  onClick={() => { setInputMode('url'); setErrorMessage(''); }}
+                  className={`flex-1 py-1.5 px-3 rounded-lg font-bold transition-all text-center ${
+                    inputMode === 'url' 
+                      ? 'bg-white text-blue-600 shadow-sm border border-slate-200' 
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  🔗 Paste Answer Key URL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setInputMode('html'); setErrorMessage(''); }}
+                  className={`flex-1 py-1.5 px-3 rounded-lg font-bold transition-all text-center ${
+                    inputMode === 'html' 
+                      ? 'bg-white text-blue-600 shadow-sm border border-slate-200' 
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  📝 Paste Raw HTML Code
+                </button>
               </div>
+
+              {/* Input Field: URL vs Raw HTML Textarea */}
+              {inputMode === 'url' ? (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Official Answer Key URL <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="url" 
+                    required={inputMode === 'url'}
+                    placeholder="https://cdn3.digialm.com/.../touchstone.html"
+                    value={ansKeyUrl}
+                    onChange={(e) => setAnsKeyUrl(e.target.value)}
+                    className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl py-2.5 px-3.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm font-mono"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                    Paste the official {examLabel}response sheet URL (Digialm or CBExams link).
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Raw Response Sheet HTML Code <span className="text-red-500">*</span>
+                  </label>
+                  <textarea 
+                    required={inputMode === 'html'}
+                    rows={4}
+                    placeholder="Paste full HTML source code of Digialm response sheet here (<div class='main-info-pnl'>...)"
+                    value={rawHtmlCode}
+                    onChange={(e) => setRawHtmlCode(e.target.value)}
+                    className="w-full bg-slate-50/80 border border-slate-300/80 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white shadow-sm font-mono"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                    Open response sheet page → Right click → View Page Source → Select All & Copy → Paste HTML here.
+                  </p>
+                </div>
+              )}
 
               {/* Form Grid — Category + Horizontal Category */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs sm:text-sm">
