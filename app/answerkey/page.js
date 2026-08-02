@@ -4,7 +4,7 @@ export const runtime = 'edge';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function AnswerKeyCalculatorPage({ params }) {
+export default function AnswerKeyCalculatorPage({ params, initialExam = null }) {
   const router = useRouter();
   const slug = params?.slug || '';
   
@@ -15,17 +15,26 @@ export default function AnswerKeyCalculatorPage({ params }) {
   const [paperLanguage, setPaperLanguage] = useState('');
   const [state, setState] = useState('');
   
+  const [currentExam, setCurrentExam] = useState(initialExam || null);
+
   // Custom right and wrong marks (defaults)
-  const [marksRight, setMarksRight] = useState('1');
-  const [marksWrong, setMarksWrong] = useState('0.25');
+  const [marksRight, setMarksRight] = useState(
+    initialExam?.marks_right !== undefined && initialExam?.marks_right !== null
+      ? String(initialExam.marks_right)
+      : '1'
+  );
+  const [marksWrong, setMarksWrong] = useState(
+    initialExam?.marks_wrong !== undefined && initialExam?.marks_wrong !== null
+      ? String(initialExam.marks_wrong)
+      : '0.25'
+  );
 
   const [consentChecked, setConsentChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [currentExam, setCurrentExam] = useState(null);
 
   useEffect(() => {
-    if (slug) {
+    if (slug && (!currentExam || currentExam.slug !== slug)) {
       fetch(`/api/admin/exams`)
         .then(res => res.json())
         .then(data => {
