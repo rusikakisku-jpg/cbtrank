@@ -224,21 +224,36 @@ export async function POST(request) {
       parsed.headerImgUrl = resolveAbsoluteUrl(parsed.headerImgUrl, cleanUrl);
     }
 
-    // ── REAL D1-BASED RANKING SYSTEM ──
+    // ── Helper: Extract exam_id from Digialm URL (/pub/<id>/touchstone) ──
+    function extractExamIdFromUrl(url) {
+      if (!url) return '';
+      const match = url.match(/\/pub\/([^/]+)\/touchstone/i) || url.match(/\/pub\/([^/]+)\/?/i);
+      return match ? match[1] : '';
+    }
+
+    const extractedExamId = extractExamIdFromUrl(cleanUrl);
+
+    // ── REAL D1-BASED RANKING & AVERAGE SYSTEM (100% Match to digialm.php) ──
     let realOverallRank = parsed.overallRank;
     let realOverallTotal = parsed.totalCandidates;
+    let realOverallAvg = null;
+
     let realCategoryRank = parsed.categoryRank;
     let realCategoryTotal = Math.round(parsed.totalCandidates * 0.28);
+    let realCategoryAvg = null;
+
     let realShiftRank = Math.max(1, Math.round(parsed.overallRank * 0.15));
     let realShiftTotal = Math.round(parsed.totalCandidates * 0.15);
+    let realShiftAvg = null;
 
     try {
-      // Ensure user_ranks table exists
+      // Ensure user_ranks table exists with exam_id column
       await queryD1(`
         CREATE TABLE IF NOT EXISTS user_ranks (
           url_hash TEXT PRIMARY KEY,
           url TEXT,
           exam_slug TEXT,
+          exam_id TEXT,
           total_marks REAL,
           category TEXT,
           gender TEXT,
@@ -259,44 +274,61 @@ export async function POST(request) {
 
       // Upsert current submission score into user_ranks
       await queryD1(`
-        INSERT INTO user_ranks (url_hash, url, exam_slug, total_marks, category, gender, test_date, test_time, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'), DATETIME('now'))
+        INSERT INTO user_ranks (url_hash, url, exam_slug, exam_id, total_marks, category, gender, test_date, test_time, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'), DATETIME('now'))
         ON CONFLICT(url_hash) DO UPDATE SET
+          exam_slug = excluded.exam_slug,
+          exam_id = excluded.exam_id,
           total_marks = excluded.total_marks,
           category = excluded.category,
           gender = excluded.gender,
           test_date = excluded.test_date,
           test_time = excluded.test_time,
           updated_at = DATETIME('now')
-      `, [urlHash, cleanUrl, targetSlug, targetScore, category, gender, parsed.testDate, parsed.testTime]);
+      `, [urlHash, cleanUrl, targetSlug, extractedExamId, targetScore, category, gender, parsed.testDate, parsed.testTime]);
 
-      // Query real DB ranks
-      const higherCountRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND total_marks > ?`, [targetSlug, targetScore]);
-      const totalCountRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ?`, [targetSlug]);
-      
-      const catHigherRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND category = ? AND total_marks > ?`, [targetSlug, category, targetScore]);
-      const catTotalRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND category = ?`, [targetSlug, category]);
+      // Query real DB ranks and averages
+      const queryExamKey = extractedExamId || targetSlug;
+
+      const higherCountRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?)) AND total_marks > ?`, [queryExamKey, targetSlug, targetScore]);
+      const totalCountRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?))`, [queryExamKey, targetSlug]);
+      const avgOverallRow = await firstD1(`SELECT AVG(total_marks) as avg_val FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?))`, [queryExamKey, targetSlug]);
+
+      const catHigherRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?)) AND category = ? AND total_marks > ?`, [queryExamKey, targetSlug, category, targetScore]);
+      const catTotalRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?)) AND category = ?`, [queryExamKey, targetSlug, category]);
+      const catAvgRow = await firstD1(`SELECT AVG(total_marks) as avg_val FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?)) AND category = ?`, [queryExamKey, targetSlug, category]);
 
       let shiftHigherRow = null;
       let shiftTotalRow = null;
+      let shiftAvgRow = null;
       if (parsed.testDate && parsed.testTime) {
-        shiftHigherRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND test_date = ? AND test_time = ? AND total_marks > ?`, [targetSlug, parsed.testDate, parsed.testTime, targetScore]);
-        shiftTotalRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE exam_slug = ? AND test_date = ? AND test_time = ?`, [targetSlug, parsed.testDate, parsed.testTime]);
+        shiftHigherRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?)) AND test_date = ? AND test_time = ? AND total_marks > ?`, [queryExamKey, targetSlug, parsed.testDate, parsed.testTime, targetScore]);
+        shiftTotalRow = await firstD1(`SELECT COUNT(*) as cnt FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?)) AND test_date = ? AND test_time = ?`, [queryExamKey, targetSlug, parsed.testDate, parsed.testTime]);
+        shiftAvgRow = await firstD1(`SELECT AVG(total_marks) as avg_val FROM user_ranks WHERE (exam_id = ? OR (exam_id IS NULL AND exam_slug = ?)) AND test_date = ? AND test_time = ?`, [queryExamKey, targetSlug, parsed.testDate, parsed.testTime]);
       }
 
       if (totalCountRow && totalCountRow.cnt > 0) {
         realOverallRank = (higherCountRow?.cnt || 0) + 1;
         realOverallTotal = totalCountRow.cnt;
+        if (avgOverallRow && avgOverallRow.avg_val !== null) {
+          realOverallAvg = parseFloat(Number(avgOverallRow.avg_val).toFixed(2));
+        }
       }
 
       if (catTotalRow && catTotalRow.cnt > 0) {
         realCategoryRank = (catHigherRow?.cnt || 0) + 1;
         realCategoryTotal = catTotalRow.cnt;
+        if (catAvgRow && catAvgRow.avg_val !== null) {
+          realCategoryAvg = parseFloat(Number(catAvgRow.avg_val).toFixed(2));
+        }
       }
 
       if (shiftTotalRow && shiftTotalRow.cnt > 0) {
         realShiftRank = (shiftHigherRow?.cnt || 0) + 1;
         realShiftTotal = shiftTotalRow.cnt;
+        if (shiftAvgRow && shiftAvgRow.avg_val !== null) {
+          realShiftAvg = parseFloat(Number(shiftAvgRow.avg_val).toFixed(2));
+        }
       }
     } catch (e) {
       console.error('D1 Rank Calculation Warning:', e);
@@ -323,8 +355,11 @@ export async function POST(request) {
         normalizedScore:    parsed.normalizedScore,
         percentile:         parsed.percentile,
         overallRank:        realOverallRank,
+        overallAvg:         realOverallAvg,
         categoryRank:       realCategoryRank,
+        categoryAvg:        realCategoryAvg,
         shiftRank:          realShiftRank,
+        shiftAvg:           realShiftAvg,
         totalCandidates:    realOverallTotal,
         categoryTotal:      realCategoryTotal,
         shiftTotal:         realShiftTotal,
