@@ -29,6 +29,24 @@ function ResultPageContent() {
   const slug = searchParams.get('slug') || '';
 
   const fetchScorecard = (mRight, mWrong) => {
+    const isRecalculate = mRight !== undefined || mWrong !== undefined;
+
+    // ── Use pre-computed result from form submission (instant, no extra API call) ──
+    if (!isRecalculate && typeof window !== 'undefined') {
+      const cached = sessionStorage.getItem('cbtrank_result_data');
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          sessionStorage.removeItem('cbtrank_result_data'); // use once
+          setResultData(data);
+          setCustomMarksRight(String(data.marksRight));
+          setCustomMarksWrong(String(data.marksWrong));
+          setLoading(false);
+          return;
+        } catch (e) {}
+      }
+    }
+
     let targetUrl = ansKeyUrl;
     let targetCategory = category;
     let targetHCategory = horizontalCategory;

@@ -75,7 +75,7 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
   const examLabel = examTitleText ? `${examTitleText} ` : '';
   const showState = !currentExam;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!ansKeyUrl.trim() || !category || !gender || !consentChecked) {
       setErrorMessage('Please fill all required fields and accept the consent checkbox.');
@@ -97,23 +97,47 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
       slug,
     };
 
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('cbtrank_form_data', JSON.stringify(formData));
+    // ── Validate URL via API FIRST before redirecting ──
+    try {
+      const res = await fetch('/api/answerkey/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        // Show error on form — do NOT redirect
+        setErrorMessage(json.error || 'Invalid answer key URL. Please check and try again.');
+        setLoading(false);
+        return;
+      }
+
+      // ── Validation passed — save result data and go to result page ──
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('cbtrank_form_data', JSON.stringify(formData));
+        sessionStorage.setItem('cbtrank_result_data', JSON.stringify(json.data));
+      }
+
+      const queryParams = new URLSearchParams({
+        ans_key_url: ansKeyUrl.trim(),
+        category,
+        horizontal_category: horizontalCategory,
+        gender,
+        state,
+        paper_language: paperLanguage,
+        marks_right: marksRight,
+        marks_wrong: marksWrong,
+        slug
+      }).toString();
+
+      router.push(`/result?${queryParams}`);
+
+    } catch (err) {
+      console.error('Validation error:', err);
+      setErrorMessage('Network error. Please check your connection and try again.');
+      setLoading(false);
     }
-
-    const queryParams = new URLSearchParams({
-      ans_key_url: ansKeyUrl.trim(),
-      category,
-      horizontal_category: horizontalCategory,
-      gender,
-      state,
-      paper_language: paperLanguage,
-      marks_right: marksRight,
-      marks_wrong: marksWrong,
-      slug
-    }).toString();
-
-    router.push(`/result?${queryParams}`);
   };
 
   const statesList = [
