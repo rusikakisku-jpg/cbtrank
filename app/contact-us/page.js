@@ -51,7 +51,7 @@ export default function ContactUsPage() {
   };
 
   return (
-    <div className="w-[98%] max-w-[1200px] mx-auto px-2.5 py-6">
+    <div className="w-[95%] max-w-2xl mx-auto py-8 px-3">
       <div className="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
         
         <h1 className="text-3xl sm:text-4xl font-bold text-[#0b69ff] text-center">
