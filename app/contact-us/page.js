@@ -111,6 +111,10 @@ export default function ContactUsPage() {
           >
             {loading ? 'Sending...' : 'Send Message'}
           </button>
+
+          <p className="text-xs text-slate-500 text-center pt-1">
+            We will contact you within 24 hours.
+          </p>
         </form>
 
       </div>
