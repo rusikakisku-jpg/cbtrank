@@ -121,6 +121,11 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
         urlObj = new URL(clean.startsWith('http') ? clean : 'https://' + clean);
       } catch (err) {
         setErrorMessage('Enter Official Answerkey Url');
+        fetch('/api/answerkey/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ans_key_url: clean })
+        }).catch(() => {});
         return;
       }
 
@@ -130,11 +135,21 @@ export default function AnswerKeyCalculatorPage({ params, initialExam = null, in
 
       if (!isDigialm && !isCbexams) {
         setErrorMessage('Enter Official Answerkey Url');
+        fetch('/api/answerkey/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ans_key_url: clean })
+        }).catch(() => {});
         return;
       }
 
       if (isDigialm && !urlObj.pathname.toLowerCase().endsWith('.html')) {
         setErrorMessage('Enter Official Answerkey Url');
+        fetch('/api/answerkey/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ans_key_url: clean })
+        }).catch(() => {});
         return;
       }
     }
