@@ -84,7 +84,7 @@ function ResultPageContent() {
     setErrorMessage('');
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 18000);
 
     fetch('/api/answerkey/calculate', {
       method: 'POST',
