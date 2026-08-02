@@ -316,6 +316,87 @@ function parseSections(html, marksRight, marksWrong) {
     totalWrong += secWrong;
   }
 
+  // ── Fallback: if no section-cntnr blocks found, parse question-pnl blocks directly from html ──
+  if (totalQuestions === 0) {
+    const qBlocks = html.split(/class=['"]?\s*question-pnl\s*['"]?/i).slice(1);
+    let secTotal = qBlocks.length;
+    let secAttempted = 0, secRight = 0, secWrong = 0;
+
+    for (const qHtml of qBlocks) {
+      let chosenRaw = null;
+      const chosenMatch = qHtml.match(/[Cc]hosen\s*[Oo]ption\s*[:\t]*<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/i)
+        || qHtml.match(/[Cc]hosen\s*[Oo]ption\s*[:\t]*([1-4A-D])/i);
+      if (chosenMatch) {
+        const raw = normText(chosenMatch[1].replace(/<[^>]+>/g, ''));
+        if (raw && raw !== '--' && raw !== '-' && raw !== 'Not Answered') chosenRaw = raw;
+      }
+      const chosenIndex = chosenToIndex(chosenRaw);
+
+      let statusNorm = null;
+      const statusMatch = qHtml.match(/[Ss]tatus\s*[:\t]*<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/i);
+      if (statusMatch) {
+        const st = normText(statusMatch[1].replace(/<[^>]+>/g, '')).toLowerCase();
+        if (st.includes('not answered') || st.includes('not attempted')) statusNorm = 'Not Answered';
+        else if (st.includes('answered') || st.includes('attempted') || st.includes('marked for review')) statusNorm = 'Answered';
+      }
+      if (statusNorm === null) {
+        statusNorm = chosenIndex !== null ? 'Answered' : 'Not Answered';
+      }
+
+      const optionMatches = [...qHtml.matchAll(/class=['"]([^'"]*(?:rightAns|wrngAns)[^'"]*)['"][^>]*>([\s\S]*?)<\/td>/gi)];
+      let optionRows = [];
+      if (optionMatches.length > 0) {
+        for (const om of optionMatches) {
+          optionRows.push({ cls: om[1], text: normText(om[2].replace(/<[^>]+>/g, '')) });
+        }
+      } else {
+        const numbered = [...qHtml.matchAll(/class=['"]([^'"]*)['"]\s*>\s*(\d+\.[\s\S]*?)<\/td>/gi)];
+        for (const nm of numbered) {
+          if (/^\s*\d+\./.test(nm[2])) {
+            optionRows.push({ cls: nm[1], text: normText(nm[2].replace(/<[^>]+>/g, '')) });
+          }
+        }
+      }
+
+      if (statusNorm === 'Answered' && chosenIndex !== null) {
+        if (optionRows.length > 0) {
+          if (chosenIndex <= optionRows.length) {
+            const opt = optionRows[chosenIndex - 1];
+            if (/rightAns/i.test(opt.cls)) { secRight++; }
+            else if (/wrngAns/i.test(opt.cls)) { secWrong++; }
+            else {
+              const rightPos = optionRows.findIndex(o => /rightAns/i.test(o.cls));
+              if (rightPos >= 0 && chosenIndex === rightPos + 1) secRight++;
+              else secWrong++;
+            }
+          } else {
+            secWrong++;
+          }
+        } else {
+          secWrong++;
+        }
+        secAttempted++;
+      }
+    }
+
+    if (secTotal > 0) {
+      const secRawScore = parseFloat(((secRight * marksRight) - (secWrong * marksWrong)).toFixed(2));
+      sections.push({
+        name: 'Full Exam',
+        total: secTotal,
+        attempted: secAttempted,
+        correct: secRight,
+        wrong: secWrong,
+        unattempted: secTotal - secAttempted,
+        rawScore: secRawScore,
+      });
+      totalQuestions = secTotal;
+      totalAttempted = secAttempted;
+      totalRight = secRight;
+      totalWrong = secWrong;
+    }
+  }
+
   return { sections, totalQuestions, totalAttempted, correct: totalRight, wrong: totalWrong };
 }
 
