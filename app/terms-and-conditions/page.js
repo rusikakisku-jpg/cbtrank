@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 export const metadata = {
   title: 'Terms & Conditions - CBT RANK',
   description: 'Official Terms & Conditions for CBT RANK automated rank calculation service.',

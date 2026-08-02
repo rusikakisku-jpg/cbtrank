@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 export const metadata = {
   title: 'Privacy Policy - CBT RANK',
   description: 'Official Privacy Policy for CBT RANK covering data collection, automated scoring algorithms, cookies, and Google AdSense policies.',

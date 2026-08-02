@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 export const metadata = {
   title: 'Disclaimer - CBT RANK',
   description: 'Official Disclaimer for CBT RANK regarding automated calculation accuracy and independence from official exam authorities.',

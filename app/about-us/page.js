@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 export const metadata = {
   title: 'About Us - CBT RANK',
   description: 'Learn about CBT RANK, an automated educational utility platform designed to help government exam aspirants evaluate performance and rank standing.',
