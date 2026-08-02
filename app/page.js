@@ -1,7 +1,7 @@
 export const runtime = 'edge';
 
 import Link from 'next/link';
-import { queryD1 } from '@/lib/d1';
+import { queryD1, firstD1 } from '@/lib/d1';
 
 export const metadata = {
   title: 'CBT RANK - Latest Answer Keys & Rank Predictor',
@@ -11,6 +11,16 @@ export const metadata = {
 export default async function HomePage() {
   let latestItems = [];
   let latestBlogs = [];
+  let showBlogs = false;
+
+  try {
+    const blogSetting = await firstD1("SELECT setting_value FROM settings WHERE setting_key = 'show_blogs_section'");
+    if (blogSetting && String(blogSetting.setting_value) === '1') {
+      showBlogs = true;
+    }
+  } catch (e) {
+    console.error('Error fetching show_blogs_section setting:', e);
+  }
 
   try {
     const examsData = await queryD1('SELECT * FROM exams WHERE is_visible = 1 ORDER BY set_on_top DESC, id DESC');
@@ -21,13 +31,22 @@ export default async function HomePage() {
     console.error('Error fetching exams for homepage:', e);
   }
 
-  try {
-    const blogsData = await queryD1('SELECT * FROM blogs ORDER BY id DESC LIMIT 6');
-    if (blogsData && blogsData.length > 0) {
-      latestBlogs = blogsData;
+  if (showBlogs) {
+    try {
+      const blogsData = await queryD1('SELECT * FROM blogs ORDER BY id DESC LIMIT 6');
+      if (blogsData && blogsData.length > 0) {
+        latestBlogs = blogsData;
+      }
+    } catch (e) {
+      console.error('Error fetching blogs for homepage:', e);
     }
-  } catch (e) {
-    console.error('Error fetching blogs for homepage:', e);
+
+    // Fallback defaults if D1 returns empty
+    if (latestBlogs.length === 0) {
+      latestBlogs = [
+        { id: 101, title: 'RRB NTPC CBT-2 Cutoff Marks & Score Normalization Process Explained', slug: 'rrb-ntpc-cbt2-cutoff-normalization-guide', image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80', description: 'Comprehensive guide on how Railways calculates normalized marks across multiple shift CBT exams.', created_at: '01 Aug, 2026' }
+      ];
+    }
   }
 
   // Fallback defaults if D1 returns empty
@@ -36,12 +55,6 @@ export default async function HomePage() {
       { id: 1, title: 'RRB NTPC CBT-2 Official Answer Key 2026', subtitle: 'Check raw score, shift rank & normalized percentile', slug: 'rrb-ntpc-cbt2', is_latest: 1 },
       { id: 2, title: 'SSC CGL Tier-1 Rank Predictor & Answer Key 2026', subtitle: 'Shift-wise difficulty & category safe cutoff', slug: 'ssc-cgl-tier1', is_latest: 1 },
       { id: 3, title: 'RRB ALP CBT-1 Marks & Rank Calculator', subtitle: 'Zone-wise expected cutoff & answer key link', slug: 'rrb-alp-cbt1', is_latest: 1 }
-    ];
-  }
-
-  if (latestBlogs.length === 0) {
-    latestBlogs = [
-      { id: 101, title: 'RRB NTPC CBT-2 Cutoff Marks & Score Normalization Process Explained', slug: 'rrb-ntpc-cbt2-cutoff-normalization-guide', image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80', description: 'Comprehensive guide on how Railways calculates normalized marks across multiple shift CBT exams.', created_at: '01 Aug, 2026' }
     ];
   }
 
@@ -128,52 +141,54 @@ export default async function HomePage() {
           </div>
 
           {/* Sidebar Blogs Card with 100% Fill Fit Images */}
-          <div className="space-y-4">
-            <h3 className="text-xl font-extrabold text-[#0f172a] pb-2 border-b-2 border-[#0b69ff] inline-block">
-              Latest Updates & Articles
-            </h3>
+          {showBlogs && (
+            <div className="space-y-4">
+              <h3 className="text-xl font-extrabold text-[#0f172a] pb-2 border-b-2 border-[#0b69ff] inline-block">
+                Latest Updates & Articles
+              </h3>
 
-            <div className="grid gap-5">
-              {latestBlogs.map((blog) => (
+              <div className="grid gap-5">
+                {latestBlogs.map((blog) => (
+                  <Link 
+                    key={blog.id}
+                    href={`/${blog.slug}`}
+                    className="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden hover:border-[#0b69ff] hover:shadow-md transition-all flex flex-col group"
+                  >
+                    {/* PERFECT FILL FIT CONTAINER */}
+                    <div className="w-full h-52 sm:h-60 bg-slate-100 overflow-hidden relative">
+                      <img 
+                        src={blog.image} 
+                        alt={blog.title} 
+                        className="w-full h-full object-cover object-center block border-0"
+                      />
+                    </div>
+
+                    {/* Content Below Image */}
+                    <div className="p-5 space-y-2">
+                      <h4 className="font-bold text-base sm:text-lg text-[#0f172a] group-hover:text-[#0b69ff] transition-colors leading-snug">
+                        {blog.title}
+                      </h4>
+                      <p className="text-xs sm:text-sm text-[#64748b] line-clamp-2 leading-relaxed">
+                        {blog.description}
+                      </p>
+                      <span className="text-[11px] text-[#64748b] font-medium block pt-2 border-t border-slate-100">
+                        🕒 {blog.created_at}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="text-center pt-2">
                 <Link 
-                  key={blog.id}
-                  href={`/${blog.slug}`}
-                  className="bg-white rounded-2xl border border-[#e2e8f0] overflow-hidden hover:border-[#0b69ff] hover:shadow-md transition-all flex flex-col group"
+                  href="/blogs" 
+                  className="inline-block bg-slate-100 hover:bg-[#0b69ff] text-[#0b69ff] hover:text-white font-bold text-xs py-2.5 px-5 rounded-lg transition-all"
                 >
-                  {/* PERFECT FILL FIT CONTAINER */}
-                  <div className="w-full h-52 sm:h-60 bg-slate-100 overflow-hidden relative">
-                    <img 
-                      src={blog.image} 
-                      alt={blog.title} 
-                      className="w-full h-full object-cover object-center block border-0"
-                    />
-                  </div>
-
-                  {/* Content Below Image */}
-                  <div className="p-5 space-y-2">
-                    <h4 className="font-bold text-base sm:text-lg text-[#0f172a] group-hover:text-[#0b69ff] transition-colors leading-snug">
-                      {blog.title}
-                    </h4>
-                    <p className="text-xs sm:text-sm text-[#64748b] line-clamp-2 leading-relaxed">
-                      {blog.description}
-                    </p>
-                    <span className="text-[11px] text-[#64748b] font-medium block pt-2 border-t border-slate-100">
-                      🕒 {blog.created_at}
-                    </span>
-                  </div>
+                  More Articles &rarr;
                 </Link>
-              ))}
+              </div>
             </div>
-
-            <div className="text-center pt-2">
-              <Link 
-                href="/blogs" 
-                className="inline-block bg-slate-100 hover:bg-[#0b69ff] text-[#0b69ff] hover:text-white font-bold text-xs py-2.5 px-5 rounded-lg transition-all"
-              >
-                More Articles &rarr;
-              </Link>
-            </div>
-          </div>
+          )}
 
         </section>
 

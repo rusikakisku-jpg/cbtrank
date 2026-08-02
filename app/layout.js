@@ -3,6 +3,7 @@ export const runtime = 'edge';
 import "./globals.css";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import Script from 'next/script';
+import { firstD1 } from "@/lib/d1";
 
 export const metadata = {
   title: "CBT RANK - Latest Answer Keys, Exam Marks & Rank Predictor",
@@ -17,7 +18,17 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  let showBlogs = false;
+  try {
+    const blogSetting = await firstD1("SELECT setting_value FROM settings WHERE setting_key = 'show_blogs_section'");
+    if (blogSetting && (String(blogSetting.setting_value) === '1')) {
+      showBlogs = true;
+    }
+  } catch (e) {
+    console.error("Error fetching show_blogs_section setting:", e);
+  }
+
   return (
     <html lang="hi" className="h-full antialiased">
       <head>
@@ -43,7 +54,7 @@ export default function RootLayout({ children }) {
       </head>
 
       <body className="min-h-full flex flex-col bg-[#0f172a] text-[#0f172a] font-sans antialiased">
-        <LayoutWrapper>
+        <LayoutWrapper showBlogs={showBlogs}>
           {children}
         </LayoutWrapper>
 

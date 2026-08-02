@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-export default function Navbar() {
+export default function Navbar({ showBlogs = false }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -21,12 +21,14 @@ export default function Navbar() {
           </Link>
         </div>
 
-        {/* Desktop Navigation Links (EXACT match with original PHP header.php) */}
+        {/* Desktop Navigation Links */}
         <nav className="hidden md:block">
           <ul className="flex items-center gap-6 font-medium text-sm text-white">
             <li><Link href="/" className="hover:text-blue-100 transition-colors">Home</Link></li>
             <li><Link href="/answerkey" className="hover:text-blue-100 transition-colors">Answer Key</Link></li>
-            <li><Link href="/blogs" className="hover:text-blue-100 transition-colors">Blog</Link></li>
+            {showBlogs && (
+              <li><Link href="/blogs" className="hover:text-blue-100 transition-colors">Blog</Link></li>
+            )}
           </ul>
         </nav>
 
@@ -43,7 +45,7 @@ export default function Navbar() {
 
       </div>
 
-      {/* Mobile Slide-Down Menu Drawer (EXACT match with original PHP header.php) */}
+      {/* Mobile Slide-Down Menu Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#003399] border-t border-blue-600 px-6 py-4 space-y-3 animate-fade-in">
           <Link 
@@ -56,17 +58,19 @@ export default function Navbar() {
           <Link 
             href="/answerkey" 
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-white font-semibold py-2 border-b border-blue-500/40 hover:text-blue-200"
+            className={`block text-white font-semibold py-2 ${showBlogs ? 'border-b border-blue-500/40' : ''} hover:text-blue-200`}
           >
             Answer Key
           </Link>
-          <Link 
-            href="/blogs" 
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-white font-semibold py-2 hover:text-blue-200"
-          >
-            Blog
-          </Link>
+          {showBlogs && (
+            <Link 
+              href="/blogs" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-white font-semibold py-2 hover:text-blue-200"
+            >
+              Blog
+            </Link>
+          )}
         </div>
       )}
     </header>
