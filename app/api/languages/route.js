@@ -12,9 +12,9 @@ export async function GET(request) {
     let languages = [];
 
     if (examId) {
-      // Smart filtering: fetch only languages assigned to this exam via exam_languages JOIN
+      // Smart filtering: fetch only DISTINCT languages assigned to this exam
       languages = await queryD1(
-        `SELECT l.id, l.name, l.slug
+        `SELECT DISTINCT l.id, l.name, l.slug
          FROM languages l
          INNER JOIN exam_languages el ON l.id = el.language_id
          WHERE el.exam_id = ? AND l.is_active = 1
@@ -22,14 +22,14 @@ export async function GET(request) {
         [examId]
       );
     } else if (slug) {
-      // Fetch exam_id from slug first, then get assigned languages
+      // Fetch exam_id from slug first, then get DISTINCT assigned languages
       const examRows = await queryD1(
         `SELECT id FROM exams WHERE slug = ? LIMIT 1`,
         [slug]
       );
       if (examRows && examRows.length > 0) {
         languages = await queryD1(
-          `SELECT l.id, l.name, l.slug
+          `SELECT DISTINCT l.id, l.name, l.slug
            FROM languages l
            INNER JOIN exam_languages el ON l.id = el.language_id
            WHERE el.exam_id = ? AND l.is_active = 1
@@ -42,7 +42,7 @@ export async function GET(request) {
     // Fallback OR direct /answerkey access: return all active languages
     if (!languages || languages.length === 0) {
       languages = await queryD1(
-        `SELECT id, name, slug FROM languages WHERE is_active = 1 ORDER BY name ASC`
+        `SELECT DISTINCT id, name, slug FROM languages WHERE is_active = 1 ORDER BY name ASC`
       );
     }
 
