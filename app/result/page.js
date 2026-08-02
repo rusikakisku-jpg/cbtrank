@@ -83,47 +83,70 @@ function ResultPageContent() {
     setLoading(true);
     setErrorMessage('');
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 18000);
+    // Client-first direct fetch to bypass datacenter IP blocks (user is on residential ISP)
+    const attemptClientFetch = async () => {
+      try {
+        const clientCtrl = new AbortController();
+        const clientTimer = setTimeout(() => clientCtrl.abort(), 6000);
+        const directRes = await fetch(targetUrl, {
+          signal: clientCtrl.signal,
+          headers: { 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+        });
+        clearTimeout(clientTimer);
+        if (directRes.ok) {
+          const directHtml = await directRes.text();
+          if (directHtml && (directHtml.toLowerCase().includes('main-info-pnl') || directHtml.toLowerCase().includes('td class="bld"') || directHtml.toLowerCase().includes('question-pnl'))) {
+            return directHtml;
+          }
+        }
+      } catch (e) {}
+      return null;
+    };
 
-    fetch('/api/answerkey/calculate', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ans_key_url: targetUrl,
-        category: targetCategory,
-        horizontal_category: targetHCategory,
-        gender: targetGender,
-        state: targetState,
-        paper_language: targetLang,
-        marks_right: targetMarksRight,
-        marks_wrong: targetMarksWrong,
-        slug: targetSlug,
+    attemptClientFetch().then(clientHtml => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 18000);
+
+      fetch('/api/answerkey/calculate', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ans_key_url: targetUrl,
+          html_content: clientHtml || undefined,
+          category: targetCategory,
+          horizontal_category: targetHCategory,
+          gender: targetGender,
+          state: targetState,
+          paper_language: targetLang,
+          marks_right: targetMarksRight,
+          marks_wrong: targetMarksWrong,
+          slug: targetSlug,
+        })
       })
-    })
-      .then(res => res.json())
-      .then(json => {
-        clearTimeout(timeoutId);
-        setLoading(false);
-        if (json.success && json.data) {
-          setResultData(json.data);
-          setCustomMarksRight(String(json.data.marksRight));
-          setCustomMarksWrong(String(json.data.marksWrong));
-        } else {
-          setErrorMessage(json.error || 'Failed to process answer key response sheet.');
-        }
-      })
-      .catch(err => {
-        clearTimeout(timeoutId);
-        console.error('Result calculation error:', err);
-        setLoading(false);
-        if (err.name === 'AbortError') {
-          setErrorMessage('Response sheet calculation timed out. The link might be unreachable or expired.');
-        } else {
-          setErrorMessage('Network error occurred while generating analysis.');
-        }
-      });
+        .then(res => res.json())
+        .then(json => {
+          clearTimeout(timeoutId);
+          setLoading(false);
+          if (json.success && json.data) {
+            setResultData(json.data);
+            setCustomMarksRight(String(json.data.marksRight));
+            setCustomMarksWrong(String(json.data.marksWrong));
+          } else {
+            setErrorMessage(json.error || 'Failed to process answer key response sheet.');
+          }
+        })
+        .catch(err => {
+          clearTimeout(timeoutId);
+          console.error('Result calculation error:', err);
+          setLoading(false);
+          if (err.name === 'AbortError') {
+            setErrorMessage('Response sheet calculation timed out. The link might be unreachable or expired.');
+          } else {
+            setErrorMessage('Network error occurred while generating analysis.');
+          }
+        });
+    });
   };
 
   useEffect(() => {
